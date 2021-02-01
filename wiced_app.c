@@ -1,10 +1,10 @@
 /*
- * Copyright 2016-2020, Cypress Semiconductor Corporation or a subsidiary of
- * Cypress Semiconductor Corporation. All Rights Reserved.
+ * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
- * materials ("Software"), is owned by Cypress Semiconductor Corporation
- * or one of its subsidiaries ("Cypress") and is protected by and subject to
+ * materials ("Software") is owned by Cypress Semiconductor Corporation
+ * or one of its affiliates ("Cypress") and is protected by and subject to
  * worldwide patent protection (United States and foreign),
  * United States copyright laws and international treaty provisions.
  * Therefore, you may use this Software only as provided in the license
@@ -13,7 +13,7 @@
  * If no EULA applies, Cypress hereby grants you a personal, non-exclusive,
  * non-transferable license to copy, modify, and compile the Software
  * source code solely for use in connection with Cypress's
- * integrated circuit products. Any reproduction, modification, translation,
+ * integrated circuit products.  Any reproduction, modification, translation,
  * compilation, or representation of this Software except as specified
  * above is prohibited without the express written permission of Cypress.
  *
@@ -77,6 +77,11 @@ static wiced_bt_buffer_pool_t* watch_app_pool_big = NULL;
 static wiced_bt_buffer_pool_t* watch_app_pool_small = NULL;
 #endif
 
+#if BTSTACK_VER >= 0x01020000
+#define BT_STACK_HEAP_SIZE          1024 * 6
+wiced_bt_heap_t *p_default_heap = NULL;
+#endif
+
 
 #define WICED_HS_EIR_BUF_MAX_SIZE 264
 
@@ -91,6 +96,8 @@ static wiced_result_t btm_enabled_event_handler(wiced_bt_dev_enabled_t *event_da
 APPLICATION_START()
 {
     wiced_result_t result;
+
+    hci_control_init();
 
 #ifdef WICED_BT_TRACE_ENABLE
 #ifdef NO_PUART_SUPPORT
@@ -109,12 +116,25 @@ APPLICATION_START()
 #else
     wiced_hal_puart_configuration( 3000000, PARITY_NONE, STOP_BIT_2 );
 #endif // CYW20706A2
-#endif // CYW43012C0
+#endif // NO_PUART_SUPPORT
 #endif // WICED_BT_TRACE_ENABLE
 
-    hci_control_init();
+#if BTSTACK_VER >= 0x01020000
+    /* Create default heap */
+    p_default_heap = wiced_bt_create_heap("default_heap", NULL, BT_STACK_HEAP_SIZE, NULL,
+            WICED_TRUE);
+    if (p_default_heap == NULL)
+    {
+        WICED_BT_TRACE("create default heap error: size %d\n", BT_STACK_HEAP_SIZE);
+        return;
+    }
+#endif
 
+#if BTSTACK_VER >= 0x01020000
+    result = wiced_bt_stack_init(btm_event_handler, &wiced_bt_cfg_settings);
+#else
     result = wiced_bt_stack_init(btm_event_handler, &wiced_bt_cfg_settings, wiced_app_cfg_buf_pools);
+#endif
     if (WICED_SUCCESS != result)
     {
         WICED_BT_TRACE("ERROR bt_stack_init %u\n", result);
@@ -195,7 +215,7 @@ void write_eir(void)
     UINT8_TO_STREAM(p, 0x00);
 
     // print EIR data
-    wiced_bt_trace_array( "EIR :", ( uint8_t* )( pBuf+1 ), MIN( p - ( uint8_t* )pBuf, 100 ) );
+    wiced_bt_trace_array( "EIR :", ( uint8_t* )( pBuf ), MIN( p - ( uint8_t* )pBuf, 100 ) );
     wiced_bt_dev_write_eir( pBuf, (uint16_t)(p - pBuf) );
 
     /* Allocated buffer not anymore needed. Free it */

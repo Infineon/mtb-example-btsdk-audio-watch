@@ -8,8 +8,8 @@ Features demonstrated:
  - WICED BT A2DP Source APIs
  - WICED BT AVRCP (Controller/Target) APIs
  - WICED BT GATT APIs
- - Apple Media Service and Apple Notification Client Services (AMS and ANCS)
- - Handling of the UART WICED protocol
+ - Apple Media Service and Apple Notification Center Services (AMS and ANCS)
+ - Handling of the UART/SPI WICED protocol
  - SDP and GATT descriptor/attribute configuration
  - WICED BT SCO/RFCOMM initiator APIs and HFP Audio Gateway role
  - HFP Hands-free Unit role
@@ -18,16 +18,51 @@ Features demonstrated:
 To demonstrate the app, follow these steps:
 
 1. Build and download the application to the WICED board.
-2. Open the BT/BLE Profile ClientControl application and open the port for WICED HCI for the device.
-   Default baud rate configured in the application is defined by the BSP HCI\_UART\_DEAULT\_BAUD #define,
-   usually either 3M or 115200 depending on the board UART capabilities.
+2. Open the BT/BLE Profile ClientControl application
+     - [UART] Open the port for WICED HCI for the device.(Default baud rate configured in the application is defined by the BSP HCI\_UART\_DEAULT\_BAUD #define, usually either 3M or 115200 depending on the board UART capabilities.)
+     - [SPI] Open the port for WICED PUART for the SPI master device (using 115200 baudrate and without flow control). Refer the instructions below for SPI setup (supported on 20719B2/20721B2 only)
 3. Use the ClientControl application to send various commands as mentioned below.
 4. Run the BTSpy program to view protocol and application traces.
 
+## SPI as transport instead of UART
+
+1. Download uart_spi_bridge application on a 20706A2 board.
+2. Connect SPI pins as indicatd below,
+
+    Master (20706A2):
+
+    - SPI CLK     - P36(J19.6)
+    - SPI MOSI    - P0(J22.6)
+    - SPI MISO    - P25(J19.4)
+    - SPI CS      - P26(J22.4)
+    - SLAVE READY - P12(J22.7)
+    - GND         - J19.8
+
+    Slave:
+
+    - SPI CLK     - P38(D13)
+    - SPI MOSI    - P28(D11)
+    - SPI MISO    - P01(D12)
+    - SPI CS      - P07(D10)
+    - SLAVE READY - P06(D8)
+    - GND         - J3.4
+
+3. Ensure that pin config array has the following pins configured correctly,
+
+    [PLATFORM_GPIO_1] = {WICED_P01, spi_0_miso_0_TRIGGER_IN},
+    [PLATFORM_GPIO_4] = {WICED_P06, WICED_SPI_1_SLAVE_READY},
+    [PLATFORM_GPIO_5] = {WICED_P07, spi_0_cs_0_TRIGGER_IN},
+    [PLATFORM_GPIO_11] = {WICED_P28, spi_0_mosi_0_TRIGGER_IN},
+    [PLATFORM_GPIO_15] = {WICED_P38, spi_0_clk_0_TRIGGER_IN},
 
 BR/EDR Audio Source and AVRC Target:
 
 - The Watch app can demonstrate how use to BR/EDR Audio Source and AVRC TG profiles.
+- Audio Source can use I2S interrupt or SW timer to decide the timing to read PCM.
+  For media type as 'I2S input', it will use I2S interrupt, and you need to configure 4 gpios as WICED I2S PINs.
+  For media type as 'Wav file' or 'Sine wave', it will use SW timer by calling wiced\_audio\_use\_sw\_timing(1).
+  In general, if using WICED HCI UART to transmit audio, it must either allocate I2S pins on unused pins for
+  I2S interrupt OR use wiced\_audio\_use\_sw\_timing(1) to enable SW timer.
 - Use the buttons in the ClientControl AV Source tab.
 - To play a sine wave sample, set the audio frequency to the desired value (48kHz, 44.1kHz, etc.)
   and select the Media type as 'Sine Wave' in the UI. In this case, built-in sine wave audio is played.
@@ -35,6 +70,12 @@ BR/EDR Audio Source and AVRC Target:
   and set the audio frequency to the desired value (48kHz, 44.1kHz, etc.)
   In this case, audio for the .wav file is routed over WICED HCI UART to the WICED board.<br>
   sinc\_44100\_16\_L440\_R1000\_50s\_stereo.wav in app folder can be used as the input of 44.1KHz 16bits stereo samples.
+- To play music from a .mp3 file, select the Media type as File, browse and select a .mp3 file,
+  and set the audio frequency to the desired value (48kHz, 44.1kHz, etc.)
+  In this case, audio for the .mp3 file is routed over WICED HCI UART to the WICED board.
+  sinc\_44100\_mono.mp3, sinc\_44100\_stereo.mp3, sinc\_48000\_mono.mp3 and sinc\_48000\_stereo.mp3 in MP3\_sample folder
+  can be used as the input of 44.1KHz/48kHz Mono/stereo samples.
+  Use only the .mp3 files provided with the application in the 'MP3_samples' folder.
 - To play music from the Line-In jack, select the Media type as 'I2S input' and set the
   audio frequency to the desired value (48kHz, 44.1kHz, etc.)
   In this case, audio from Line-In is encoded into I2S signals and routed to the WICED board.
@@ -102,8 +143,9 @@ BLE Client:
 
 HFP Audio Gateway:
 
-- Targets CYW920721B2EVK-02 and CYW9M2BASE-43012BT support HFP Audio Gateway. Build with "HFP\_AG\_INCLUDED=1"
-  to enable AG. (disables Hands-free Unit simultaneously)
+- These targets support HFP Audio Gateway:
+  CYW920721B2EVK-02, CYW920721M2EVK-01, CYW920721M2EVK-02, CYW9M2BASE-43012BT and CYW943012BTEVK-01
+- Build with "HFP\_AG\_INCLUDED=1" to enable AG. (disables Hands-free Unit simultaneously)
 - The Watch app can demonstrate how to use HFP AG as shown below.
 - Make a HFP Headset (headphone or earbuds) discoverable and pairable by its specific behavior.
 - In ClientControl, click on the "Start" button from the "BR/EDR Discovery" combo box to find the Headset device.
@@ -114,7 +156,8 @@ HFP Audio Gateway:
 
 HFP Hands-free Unit:
 
-- Targets CYW920721B2EVK-02 and CYW9M2BASE-43012BT support HFP Hands-free Unit by default.
+- These targets support HFP Hands-free Unit by default:
+  CYW920721B2EVK-02, CYW920721M2EVK-01, CYW920721M2EVK-02, CYW9M2BASE-43012BT and CYW943012BTEVK-01
 - To create a hands-free connection with a remote Audio Gateway (AG) device (such as a mobile phone), use ClientControl and choose the Bluetooth address of the remote AG device from the BR/EDR combo box.<br/>
   Click the "Connect" button under HF tab.
 - OR Put the device in discoverable and connectable mode and search for the device from the AG device and connect.
@@ -122,7 +165,7 @@ HFP Hands-free Unit:
    -  Connect / Disconnect the HF or SCO connection
    -  Answer / Hang-up the call
    -  Dial / Redial the number
-   -  Control Held calls (ex. hold call, release all held calls, etc.)
+   -  Control Held calls ( Only support "Release all held", "Release active accept other", "Place active on hold and accept other", "Add held to conversation( It’s functionality depends on the telecom network operator, if the telecom network side support the feature, the function will work. AG always supports this feature and responses OK)")
    -  Mic / Speaker gain control
 
 ## Application Settings
@@ -130,22 +173,25 @@ Application specific settings are as shown below:
 
 - SLEEP\_SUPPORTED
     - This option allows the device to enter low power mode. By default the option is off. When sleep is enabled, ClientControl will not be able to communicate with the embedded app unless a GPIO is asserted.
+    - 43012C0-related target (CYW9M2BASE-43012BT and CYW943012BTEVK-01) does not support this functionality.
 
 - COEX\_SUPPORTED
     - This option enables BT and Wi-Fi Coexistence. By default the option is off.
 
 - OTA\_FW\_UPGRADE
     - Use this option for OTA firmware upgrade
+    - 43012C0-related target (CYW9M2BASE-43012BT and CYW943012BTEVK-01) does not support this functionality.
 
 - OTA\_SEC\_FW\_UPGRADE
     - Use this option for secure OTA firmware upgrade
+    - 43012C0-related target (CYW9M2BASE-43012BT and CYW943012BTEVK-01) does not support this functionality.
 
 ## Common application settings
 
 Application settings below are common for all BTSDK applications and can be configured via the makefile of the application or passed in via the command line.
 
 - BT\_DEVICE\_ADDRESS<br/>
-    - Set the BDA (Bluetooth Device Address) for your device. The BT address is 6 bytes, for example, 20819A10FFEE. By default, the SDK will set a BDA for your device by combining the 7 hex digit device ID with the last 5 hex digits of the host PC MAC address.
+    - Set the BDA (Bluetooth Device Address) for your device. The address is 6 bytes, for example, 20819A10FFEE. By default, the SDK will set a BDA for your device by combining the 7 hex digit device ID with the last 5 hex digits of the host PC MAC address.
 
 - UART<br/>
     - Set to the UART port you want to use to download the application. For example 'COM6' on Windows or '/dev/ttyWICED\_HCI\_UART0' on Linux or '/dev/tty.usbserial-000154' on macOS. By default, the SDK will auto-detect the port.
@@ -153,15 +199,20 @@ Application settings below are common for all BTSDK applications and can be conf
 - ENABLE_DEBUG<br/>
     - For HW debugging, select the option '1'. See the document [WICED-Hardware-Debugging](https://github.com/cypresssemiconductorco/btsdk-docs/blob/master/docs/BT-SDK/WICED-Hardware-Debugging.pdf) for more information. This setting configures GPIO for SWD.
       - CYW920819EVB-02/CYW920820EVB-02: SWD signals are shared with D4 and D5, see SW9 in schematics.
-      - CYBT-213043-MESH/CYBT-213043-EVAL: SWD signals are routed to P12=SWDCK and P13=SWDIO. Use expansion connectors to connect VDD, GND, SWDCK, and SWDIO to your SWD Debugger probe.
+      - CYBT-213043-MESH/CYBT-213043-EVAL : SWD signals are routed to P02=SWDCK and P03=SWDIO. Use expansion connectors to connect VDD, GND, SWDCK, and SWDIO to your SWD Debugger probe.
+	  - CYBT-223058-EVAL : SWD signals are routed to P02=SWDCK and P03=SWDIO. Use expansion connectors to connect VDD, GND, SWDCK, and SWDIO to your SWD Debugger probe.
+	  - CYBT-243053-EVAL: SWD signals are routed to P12=SWDCK and P13=SWDIO. Use expansion connectors to connect VDD, GND, SWDCK, and SWDIO to your SWD Debugger probe.
+	  - CYBT-253059-EVAL: SWD signals are routed to P12=SWDCK and P13=SWDIO. Use expansion connectors to connect VDD, GND, SWDCK, and SWDIO to your SWD Debugger probe.
       - CYW989820EVB-01: SWDCK (P02) is routed to the J13 DEBUG connector, but not SWDIO. Add a wire from J10 pin 3 (PUART CTS) to J13 pin 2 to connect GPIO P10 to SWDIO.
       - CYW920719B2Q40EVB-01: PUART RX/TX signals are shared with SWDCK and SWDIO. Remove RX and TX jumpers on J10 when using SWD. PUART and SWD cannot be used simultaneously on this board unless these pins are changed from the default configuration.
       - CYW920721B2EVK-02: SWD hardware debugging supported. SWD signals are shared with D4 and D5, see SW9 in schematics.
-      - CYW920721B2EVK-03: SWD hardware debugging is not supported.
+      - CYW920721B2EVK-03, CYW920721M2EVK-01: SWD hardware debugging is not supported.
+      - CYW920721M2EVK-02: SWD hardware debugging is supported. The default setup uses P03 for SWDIO and P05 for SWDCK.
       - CYW920706WCDEVAL: SWD debugging requires fly-wire connections. The default setup uses P15 (J22 pin 3) for SWDIO and P30 (J19 pin 2) for SWDCK. P30 is shared with BTN1.
       - CYW920735Q60EVB-01: SWD hardware debugging supported. The default setup uses the J13 debug header, P3 (J13 pin 2) for SWDIO and P2 (J13 pin 4) for SWDCK.  They can be optionally routed to D4 and D4 on the Arduino header J4, see SW9 in schematics.
       - CYW920835REF-RCU-01: SWD hardware debugging is not supported.
       - CYW9M2BASE-43012BT: SWD hardware debugging is not supported.
+      - CYW943012BTEVK-01: SWD hardware debugging is not supported.
 
 ## Building code examples
 
@@ -208,20 +259,20 @@ Note: this is only applicable to boards that download application images to FLAS
 
 ## SDK software features
 
-- Dual-mode Bluetooth stack included in the ROM (BR/EDR and BLE)
-- BT stack and profile level APIs for embedded BT application development
+- Dual-mode Bluetooth stack included in the ROM (BR/EDR and LE)
+- Bluetooth stack and profile level APIs for embedded Bluetooth application development
 - WICED HCI protocol to simplify host/MCU application development
 - APIs and drivers to access on-board peripherals
-- Bluetooth protocols include GAP, GATT, SMP, RFCOMM, SDP, AVDT/AVCT, BLE Mesh
-- BLE and BR/EDR profile APIs, libraries, and sample apps
+- Bluetooth protocols include GAP, GATT, SMP, RFCOMM, SDP, AVDT/AVCT, LE Mesh
+- LE and BR/EDR profile APIs, libraries, and sample apps
 - Support for Over-The-Air (OTA) upgrade
 - Device Configurator for creating custom pin mapping
-- Bluetooth Configurator for creating BLE GATT Database
+- Bluetooth Configurator for creating LE GATT Database
 - Peer apps based on Android, iOS, Windows, etc. for testing and reference
 - Utilities for protocol tracing, manufacturing testing, etc.
 - Documentation for APIs, datasheets, profiles, and features
 - BR/EDR profiles: A2DP, AVRCP, HFP, HSP, HID, SPP, MAP, PBAP, OPP
-- BLE profiles: Mesh profiles, HOGP, ANP, BAP, HRP, FMP, IAS, ESP, LE COC
+- LE profiles: Mesh profiles, HOGP, ANP, BAP, HRP, FMP, IAS, ESP, LE COC
 - Apple support: Apple Media Service (AMS), Apple Notification Center Service (ANCS), iBeacon, Homekit, iAP2
 - Google support: Google Fast Pair Service (GFPS), Eddystone
 - Amazon support: Alexa Mobile Accessories (AMA)
@@ -230,14 +281,22 @@ Note: this is a list of all features and profiles supported in BTSDK, but some W
 
 ## List of boards available for use with BTSDK
 
-- CYW20819A1 chip: CYW920819EVB-02, CYBT-213043-MESH, CYBT-213043-EVAL, CYW920819REF-KB-01
-- CYW20820A1 chip: CYW920820EVB-02, CYW989820EVB-01
-- CYW20721B2 chip: CYW920721B2EVK-02, CYW920721B2EVK-03, CYW920721M2EVK-01, CYW920721M2EVK-02, CYBT-423060-EVAL, CYBT-483062-EVAL, CYBT-413061-EVAL
-- CYW20719B2 chip: CYW920719B2Q40EVB-01, CYBT-423054-EVAL, CYBT-413055-EVAL, CYBT-483056-EVAL
-- CYW20706A2 chip: CYW920706WCDEVAL, CYBT-353027-EVAL, CYBT-343026-EVAL
-- CYW20735B1 chip: CYW920735Q60EVB-01
-- CYW20835B1 chip: CYW920835REF-RCU-01
-- CYW43012C0 chip: CYW9M2BASE-43012BT, CYW9M2BASE-43012BT20
+- [CYW20819A1 chip](https://github.com/cypresssemiconductorco/20819A1)
+    - [CYW920819EVB-02](https://github.com/cypresssemiconductorco/TARGET_CYW920819EVB-02), [CYBT-213043-MESH](https://github.com/cypresssemiconductorco/TARGET_CYBT-213043-MESH), [CYBT-213043-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-213043-EVAL), [CYW920819REF-KB-01](https://github.com/cypresssemiconductorco/TARGET_CYW920819REF-KB-01)
+- [CYW20820A1 chip](https://github.com/cypresssemiconductorco/20820A1)
+    - [CYW920820EVB-02](https://github.com/cypresssemiconductorco/TARGET_CYW920820EVB-02), [CYW989820EVB-01](https://github.com/cypresssemiconductorco/TARGET_CYW989820EVB-01), [CYBT-243053-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-243053-EVAL)
+- [CYW20721B2 chip](https://github.com/cypresssemiconductorco/20721B2)
+    - [CYW920721B2EVK-02](https://github.com/cypresssemiconductorco/TARGET_CYW920721B2EVK-02), [CYW920721B2EVK-03](https://github.com/cypresssemiconductorco/TARGET_CYW920721B2EVK-03), [CYW920721M2EVK-01](https://github.com/cypresssemiconductorco/TARGET_CYW920721M2EVK-01), [CYW920721M2EVK-02](https://github.com/cypresssemiconductorco/TARGET_CYW920721M2EVK-02), [CYBT-423060-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-423060-EVAL), [CYBT-483062-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-483062-EVAL), [CYBT-413061-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-413061-EVAL)
+- [CYW20719B2 chip](https://github.com/cypresssemiconductorco/20719B2)
+    - [CYW920719B2Q40EVB-01](https://github.com/cypresssemiconductorco/TARGET_CYW920719B2Q40EVB-01), [CYBT-423054-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-423054-EVAL), [CYBT-413055-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-413055-EVAL), [CYBT-483056-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-483056-EVAL)
+- [CYW20706A2 chip](https://github.com/cypresssemiconductorco/20706A2)
+    - [CYW920706WCDEVAL](https://github.com/cypresssemiconductorco/TARGET_CYW920706WCDEVAL), [CYBT-353027-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-353027-EVAL), [CYBT-343026-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-343026-EVAL)
+- [CYW20735B1 chip](https://github.com/cypresssemiconductorco/20735B1)
+    - [CYW920735Q60EVB-01](https://github.com/cypresssemiconductorco/TARGET_CYW920735Q60EVB-01)
+- [CYW20835B1 chip](https://github.com/cypresssemiconductorco/20835B1)
+    - [CYW920835REF-RCU-01](https://github.com/cypresssemiconductorco/TARGET_CYW920835REF-RCU-01)
+- [CYW43012C0 chip](https://github.com/cypresssemiconductorco/43012C0)
+    - [CYW9M2BASE-43012BT](https://github.com/cypresssemiconductorco/TARGET_CYW9M2BASE-43012BT), [CYW943012BTEVK-01](https://github.com/cypresssemiconductorco/TARGET_CYW943012BTEVK-01)
 
 ## Folder structure
 
@@ -245,7 +304,7 @@ All BTSDK code examples need the 'mtb\_shared\wiced\_btsdk' folder to build and 
 
 **dev-kit**
 
-This folder contains the files that are needed to build the embedded BT apps.
+This folder contains the files that are needed to build the embedded Bluetooth apps.
 
 * baselib: Files for chips supported by BTSDK. For example CYW20819, CYW20719, CYW20706, etc.
 
@@ -255,17 +314,17 @@ This folder contains the files that are needed to build the embedded BT apps.
 
 * btsdk-tools: Build tools needed by BTSDK.
 
-* libraries: Profile libraries used by BTSDK apps such as audio, BLE, HID, etc.
+* libraries: Profile libraries used by BTSDK apps such as audio, LE, HID, etc.
 
 **tools**
 
-This folder contains tools and utilities need to test the embedded BT apps.
+This folder contains tools and utilities need to test the embedded Bluetooth apps.
 
-* btsdk-host-apps-bt-ble: Host apps (Client Control) for BLE and BR/EDR embedded apps, demonstrates the use of WICED HCI protocol to control embedded apps.
+* btsdk-host-apps-bt-ble: Host apps (Client Control) for LE and BR/EDR embedded apps, demonstrates the use of WICED HCI protocol to control embedded apps.
 
 * btsdk-host-peer-apps-mesh: Host apps (Client Control) and Peer apps for embedded Mesh apps, demonstrates the use of WICED HCI protocol to control embedded apps, and configuration and provisioning from peer devices.
 
-* btsdk-peer-apps-ble: Peer apps for embedded BLE apps.
+* btsdk-peer-apps-ble: Peer apps for embedded LE apps.
 
 * btsdk-peer-apps-ota: Peer apps for embedded apps that support Over The Air Firmware Upgrade.
 
@@ -280,7 +339,7 @@ Source code generation tools installed by ModusToolbox installer:
 - Device Configurator:
       A GUI tool to create custom pin mappings for your device.
 - Bluetooth Configurator:
-      A GUI tool to create and configure the BLE GATT Database and BR/EDR SDP records for your application.
+      A GUI tool to create and configure the LE GATT Database and BR/EDR SDP records for your application.
 
 ## Using BSPs (platforms)
 

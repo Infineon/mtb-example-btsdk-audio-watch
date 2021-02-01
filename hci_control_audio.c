@@ -1,10 +1,10 @@
 /*
- * Copyright 2016-2020, Cypress Semiconductor Corporation or a subsidiary of
- * Cypress Semiconductor Corporation. All Rights Reserved.
+ * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
- * materials ("Software"), is owned by Cypress Semiconductor Corporation
- * or one of its subsidiaries ("Cypress") and is protected by and subject to
+ * materials ("Software") is owned by Cypress Semiconductor Corporation
+ * or one of its affiliates ("Cypress") and is protected by and subject to
  * worldwide patent protection (United States and foreign),
  * United States copyright laws and international treaty provisions.
  * Therefore, you may use this Software only as provided in the license
@@ -13,7 +13,7 @@
  * If no EULA applies, Cypress hereby grants you a personal, non-exclusive,
  * non-transferable license to copy, modify, and compile the Software
  * source code solely for use in connection with Cypress's
- * integrated circuit products. Any reproduction, modification, translation,
+ * integrated circuit products.  Any reproduction, modification, translation,
  * compilation, or representation of this Software except as specified
  * above is prohibited without the express written permission of Cypress.
  *
@@ -58,12 +58,17 @@
 #endif
 #include "wiced_bt_a2d.h"
 #include "wiced_transport.h"
-#if ( defined(CYW20706A2) || defined(CYW20719B1) || defined(CYW20719B2) || defined(CYW43012C0) || defined(CYW20721B1) || defined(CYW20721B2) || defined(CYW20819A1) )
+#if ( defined(CYW20706A2) || defined(CYW20719B1) || defined(CYW20719B2) || defined(CYW43012C0) || defined(CYW20721B1) || defined(CYW20721B2) || defined(CYW20819A1) || BTSTACK_VER >= 0x01020000 )
 #include "wiced_bt_event.h"
 #endif
 #ifdef CYW9BT_AUDIO
 #include "wiced_audio_manager.h"
 #endif
+
+#ifdef MP3_DECODER_INCLUDED
+#include "wiced_hal_cpu_clk.h"
+#include "wiced_bt_mp3_decoder.h"
+#endif // MP3_DECODER_INCLUDED
 
 /******************************************************************************
  *                          Constants
@@ -73,6 +78,15 @@
 
 #define DEFAULT_SAMPLE_FREQUENCY    AUDIO_SF_48K
 #define DEFAULT_CHANNEL_CONFIG      AUDIO_CHCFG_STEREO
+
+#ifdef MP3_DECODER_INCLUDED
+
+#define HCI_CONTROL_AUDIO_MP3_DATA_DEFAULT_LEN                  512
+#define HCI_CONTROL_AUDIO_MP3_DECODER_SOURCE_DATA_BUFFER_DEGREE 10
+#define HCI_CONTROL_AUDIO_MP3_DECODER_SOURCE_DATA_BUFFER_SIZE   (HCI_CONTROL_AUDIO_MP3_DATA_DEFAULT_LEN * \
+                                                                 HCI_CONTROL_AUDIO_MP3_DECODER_SOURCE_DATA_BUFFER_DEGREE)
+#define HCI_CONTROL_AUDIO_MP3_DATA_RX_TOLERATE_DEGREE           4   // used to tolerate the race condition of UART communication
+#endif // MP3_DECODER_INCLUDED
 
 /******************************************************************************
  *                         Variable Definitions
@@ -115,6 +129,8 @@ typedef struct
     wiced_bool_t        is_accepter;
     wiced_bool_t        is_host_streaming;
     wiced_bool_t        is_start_cmd_pending;
+    wiced_bool_t        is_interrupted; /* TRUE: reconfigure process is triggered in the AVDT streaming state.
+                                           False: reconfigure process is triggered in the AVDT open state */
 
     // Peer SEP Info
     uint8_t             peer_num_seps;
@@ -125,6 +141,9 @@ typedef struct
     wiced_bt_avdt_cfg_t  *avdt_sep_config;
     tAV_SEP_INFO        av_sep_info[sizeof(supported_av_codecs)];
 
+#ifdef MP3_DECODER_INCLUDED
+    uint8_t             audio_format;
+#endif // MP3_DECODER_INCLUDED
 } tAV_APP_CB;
 
 /* A2DP module control block */
@@ -171,6 +190,17 @@ short single_tone_audio_buf[256];
 static int32_t stream_id = WICED_AUDIO_MANAGER_STREAM_ID_INVALID;
 #endif
 
+#ifdef MP3_DECODER_INCLUDED
+/* Data format for HCI event, HCI_CONTROL_AUDIO_EVENT_REQUEST_DATA. */
+typedef struct __attribute__((packed))
+{
+    uint16_t    packet_audio_size; // in bytes
+    uint8_t     packet_num;
+    uint16_t    req_packet_count;
+    uint16_t    rx_packet_count;
+} hci_audio_data_req_t;
+#endif
+
 /******************************************************************************
  *                          Function Declarations
  ******************************************************************************/
@@ -205,6 +235,16 @@ extern wiced_result_t wiced_bt_avrc_ct_cleanup( void );
 wiced_timer_t hci_control_audio_conn_idle_timer;
 wiced_timer_t hci_control_audio_set_cfg_timer;
 
+#ifdef MP3_DECODER_INCLUDED
+static void     hci_control_audio_data_request_handler(uint8_t num_packets, uint32_t packet_audio_size, uint32_t req_pkt_count, uint32_t rx_pkt_count);
+static void     hci_control_audio_hclk_change(wiced_bool_t enable, wiced_cpu_clk_freq_t freq);
+static void     hci_control_audio_mp3_audio_info_update_handler(wiced_bt_mp3_decoder_audio_frame_into_t *p_audio_info);
+static int      hci_control_audio_mp3_data_decode(void *p_data);
+static void     hci_control_audio_mp3_data_request(void);
+static uint8_t  hci_control_audio_mp3_utils_channel_to_a2d_format(wiced_bt_mp3_channel_t channel);
+static uint8_t  hci_control_audio_mp3_utils_sampling_rate_to_a2d_format(wiced_bt_mp3_sampling_rate_t sampling_rate);
+#endif // MP3_DECODER_INCLUDED
+
 /******************************************************************************
  *                          Function Definitions
  ******************************************************************************/
@@ -213,10 +253,25 @@ wiced_timer_t hci_control_audio_set_cfg_timer;
  */
 void hci_control_audio_init ( void )
 {
+#ifdef MP3_DECODER_INCLUDED
+    wiced_bt_mp3_decoder_config_t config = {0};
+#endif // MP3_DECODER_INCLUDED
+
     memset (&av_app_cb, 0, sizeof (av_app_cb));
 
     wiced_init_timer(&hci_control_audio_conn_idle_timer, av_app_idle_suspend_timeout, 0, WICED_SECONDS_TIMER);
     wiced_init_timer(&hci_control_audio_set_cfg_timer, av_app_send_setconfiguration, 0, WICED_SECONDS_TIMER);
+
+#ifdef MP3_DECODER_INCLUDED
+    /* Initialize the MP3 Decoder Library. */
+    config.buf_len_mp3_data         = HCI_CONTROL_AUDIO_MP3_DECODER_SOURCE_DATA_BUFFER_SIZE;
+    config.p_audio_info_update_cb   = &hci_control_audio_mp3_audio_info_update_handler;
+
+    if (!wiced_bt_mp3_decoder_init(&config))
+    {
+        WICED_BT_TRACE("Err: wiced_bt_mp3_decoder_init fail\n");
+    }
+#endif // MP3_DECODER_INCLUDED
 }
 
 /*
@@ -286,6 +341,49 @@ uint8_t hci_control_audio_handle_command( uint16_t cmd_opcode, uint8_t* p_data, 
         }
         break;
 #endif
+
+#ifdef MP3_DECODER_INCLUDED
+    /* The received MP3 data */
+    case HCI_CONTROL_AUDIO_DATA_MP3:
+        //WICED_BT_TRACE("DBG: Receive %d bytes MP3 AUDIO DATA\n", len);
+        if (wiced_bt_mp3_decoder_source_data_add(p_data, len) != len)
+        {
+            WICED_BT_TRACE("Warning: len is different.\n");
+        }
+        wiced_app_event_serialize(&hci_control_audio_mp3_data_decode, NULL);
+        break;
+
+    /* Audio file format */
+    case HCI_CONTROL_AUDIO_DATA_FORMAT:
+        {
+            /* Save the audio format. */
+            av_app_cb.audio_format = p_data[0];
+
+            if (av_app_cb.audio_format == AUDIO_SRC_AUDIO_DATA_FORMAT_MP3)
+            {
+                WICED_BT_TRACE("DBG: audio data is MP3 format\n");
+                /* Informed by Host device that the following streaming source is formated
+                 * as MP3. */
+                /* Reset the MP3 Decoder module. */
+                wiced_bt_mp3_decoder_reset();
+
+                /* Register the Audio Frame request handler to insert audio frame data.
+                 * The audio frame data is decoded from the MP3 format. */
+                wiced_audio_samples_route_init(&hci_control_audio_data_request_handler);
+
+                /* Ask MP3 data from host device. */
+                hci_control_audio_mp3_data_request();
+            }
+            else
+            {
+                WICED_BT_TRACE("DBG: audio data is PCM format\n");
+
+                /* De-register the audio frame request handler. */
+                wiced_audio_samples_route_init(NULL);
+            }
+        }
+        break;
+#endif // MP3_DECODER_INCLUDED
     default:
         status = HCI_CONTROL_STATUS_UNKNOWN_COMMAND;
         break;
@@ -304,6 +402,11 @@ void hci_control_audio_support_features_send(void)
 #ifdef CYW9BT_AUDIO
     features |= AUDIO_SRC_FEATURE_I2S_INPUT;
 #endif
+
+#ifdef MP3_DECODER_INCLUDED
+    /* Enable MP3 Format. */
+    features |= AUDIO_SRC_FEATURE_MP3_FORMAT;
+#endif // MP3_DECODER_INCLUDED
 
     wiced_transport_send_data(HCI_CONTROL_AUDIO_EVENT_SUPPORT_FEATURES,
             &features, sizeof(features));
@@ -931,6 +1034,7 @@ static void av_app_open_confirm_event_hdlr(uint8_t handle, BD_ADDR bd_addr, uint
     else
     {
         av_app_cb.reconfigure = WICED_FALSE;
+        av_app_cb.is_interrupted = WICED_FALSE;
     }
 }
 
@@ -951,6 +1055,7 @@ static void av_app_start_confirm_event_hdlr( uint8_t handle, BD_ADDR bd_addr, ui
         if (av_app_cb.reconfigure == WICED_TRUE)
         {
             av_app_cb.reconfigure = WICED_FALSE;
+            av_app_cb.is_interrupted = WICED_FALSE;
 
             av_app_cb.audio_sf    = av_app_cb.reconfig_sf;
             av_app_cb.audio_chcfg = av_app_cb.reconfig_chcfg;
@@ -1043,7 +1148,12 @@ static void av_app_reconfig_confirm_event_hdlr(uint8_t handle, BD_ADDR bd_addr, 
         av_app_cb.audio_chcfg = av_app_cb.reconfig_chcfg;
 
         /* Reconfig was successful. restart */
-        av_app_send_start_req();
+        if (av_app_cb.is_interrupted)
+        {
+            av_app_send_start_req();
+
+            av_app_cb.is_interrupted = WICED_FALSE;
+        }
     }
     else
     {
@@ -1531,6 +1641,8 @@ static wiced_result_t av_app_reconfigure_req(uint8_t new_sf, uint8_t new_chcfg)
          * Flag is set so we will come back here when suspended.
          */
         status = av_app_send_suspend_req( );
+
+        av_app_cb.is_interrupted = WICED_TRUE;
     }
     else
     {
@@ -1560,6 +1672,8 @@ static wiced_result_t av_app_reconfigure_req(uint8_t new_sf, uint8_t new_chcfg)
                 WICED_BT_TRACE( "wiced_bt_avdt_suspend_req failed hdl: %d\n\r", av_app_cb.avdt_handle );
                 status = WICED_ERROR;
             }
+
+            av_app_cb.is_interrupted = WICED_FALSE;
         }
         else
         {
@@ -2059,6 +2173,9 @@ wiced_result_t a2dp_app_hci_control_start( uint8_t* p_data, uint32_t len )
     wiced_result_t  status    = WICED_ERROR;
     uint8_t         new_sf    = p_data[2];
     uint8_t         new_chcfg = p_data[3];
+#ifdef MP3_DECODER_INCLUDED
+    wiced_bt_mp3_decoder_audio_frame_into_t *p_audio_frame_info = NULL;
+#endif
 
     WICED_BT_TRACE( "[%s] state: %s Handle %d reconfigure:%d sf:%d chcfg:%d\n\r", __FUNCTION__,
                     dump_state_name(av_app_cb.state), handle, av_app_cb.reconfigure, new_sf, new_chcfg );
@@ -2071,10 +2188,26 @@ wiced_result_t a2dp_app_hci_control_start( uint8_t* p_data, uint32_t len )
     {
         case AV_STATE_OPEN:
         case AV_STATE_STARTED:
+#ifdef MP3_DECODER_INCLUDED
+            /* Check current streaming mode. */
+            if (av_app_cb.audio_format == AUDIO_SRC_AUDIO_DATA_FORMAT_MP3)
+            {
+                /* Get current audio frame info. */
+                p_audio_frame_info = wiced_bt_mp3_audio_frame_info_get();
+                new_sf = hci_control_audio_mp3_utils_sampling_rate_to_a2d_format(p_audio_frame_info->sampling_rate);
+                new_chcfg = hci_control_audio_mp3_utils_channel_to_a2d_format(p_audio_frame_info->channel);
+            }
+#endif
+
           if (av_app_check_configured_settings(&av_app_cb.sbc_caps_configured, new_sf, new_chcfg) == WICED_FALSE)
           {
               // Need to reconfigure before we start the stream.
               status = av_app_reconfigure_req(new_sf, new_chcfg);
+              if (status == WICED_SUCCESS)
+              {
+                  /* Set flag to start streaming after AVDT RECONFIG process is finished. */
+                  av_app_cb.is_interrupted = WICED_TRUE;
+              }
           }
           else
           {
@@ -2108,6 +2241,7 @@ wiced_result_t a2dp_app_hci_control_stop(uint8_t* p_data, uint32_t len)
 
     /* If in the middle of a reconfigure cycle, stop it */
     av_app_cb.reconfigure = WICED_FALSE;
+    av_app_cb.is_interrupted = WICED_FALSE;
 
     if (av_app_cb.state == AV_STATE_STARTED)
     {
@@ -2192,7 +2326,11 @@ void avdt_init( )
     av_app_cb.stream_cb.cfg.num_protect = 0;
     av_app_cb.stream_cb.tsep            = AVDT_TSEP_SRC;          /* AVDT_TSEP_SRC: Source SEP, AVDT_TSEP_SNK : : Sink SEP */
     av_app_cb.stream_cb.nsc_mask        = AVDT_NSC_RECONFIG;      /* Reconfigure command not supported */
+#if BTSTACK_VER >= 0x01020000
+    av_app_cb.stream_cb.p_avdt_ctrl_cback    = av_app_proc_stream_evt; /* AVDT event callback */
+#else
     av_app_cb.stream_cb.p_ctrl_cback    = av_app_proc_stream_evt; /* AVDT event callback */
+#endif
     av_app_cb.stream_cb.cfg.psc_mask    = AVDT_PSC_TRANS|AVDT_PSC_DELAY_RPT;         /* Protocol service capabilities = Media transport and Delay Report*/
     av_app_cb.stream_cb.media_type      = AVDT_MEDIA_AUDIO;       /* AVDT_MEDIA_AUDIO, AVDT_MEDIA_VIDEO, AVDT_MEDIA_MULTI */
     //av_app_cb.stream_cb.mtu             = L2CAP_DEFAULT_MTU;      /* AV_DATA_MTU; */
@@ -2283,7 +2421,7 @@ void av_app_init( void )
     /* Application control block memory init*/
     if ( av_app_memInit( ) )
     {
-	hci_control_audio_init();
+        hci_control_audio_init();
         avdt_init( );
         av_app_start( ); /* start the application */
     }
@@ -2434,3 +2572,185 @@ static void av_app_am_audio_stop(void)
     stream_id = WICED_AUDIO_MANAGER_STREAM_ID_INVALID;
 }
 #endif
+
+#ifdef MP3_DECODER_INCLUDED
+
+static void hci_control_audio_data_request_handler(uint8_t num_packets, uint32_t packet_audio_size, uint32_t req_pkt_count, uint32_t rx_pkt_count)
+{
+    uint8_t pcm_data[WICED_BT_AUDIO_PCM_DATA_SIZE_IN_AN_AUDIO_FRAME];
+    uint32_t available_pcm_data_size;
+    uint8_t requested_packet_num = num_packets;
+
+    /* Check parameter. */
+    if (packet_audio_size > WICED_BT_AUDIO_PCM_DATA_SIZE_IN_AN_AUDIO_FRAME)
+    {
+        WICED_BT_TRACE("Err: The requested packet audio size is incorrect (%d).\n", packet_audio_size);
+        return;
+    }
+
+    /* Set PCM data to litehost. */
+    while (requested_packet_num)
+    {
+        /* Get the PCM data from the MP3 decoder module. */
+        available_pcm_data_size = wiced_bt_mp3_decoder_pcm_data_get(packet_audio_size, &pcm_data[0]);
+
+        if (packet_audio_size != available_pcm_data_size)
+        {
+            WICED_BT_TRACE("Err: Decoded PCM data is not enough (%d, %d)\n",
+                           packet_audio_size,
+                           available_pcm_data_size);
+
+            /* Append 0's */
+            memset((void *) &pcm_data[available_pcm_data_size],
+                   0,
+                   packet_audio_size - available_pcm_data_size);
+        }
+
+        /* Set PCM data to litehost. */
+        if (!wiced_audio_samples_set(&pcm_data[0], packet_audio_size))
+        {
+            WICED_BT_TRACE("Err: wiced_audio_samples_set fails.\n");
+        }
+
+        requested_packet_num--;
+    }
+
+    /* Set an event to decode the MP3 data. */
+    wiced_app_event_serialize(&hci_control_audio_mp3_data_decode, NULL);
+}
+
+static int hci_control_audio_mp3_data_decode(void *p_data)
+{
+    (void) p_data;
+
+    //WICED_BT_TRACE("hci_control_audio_mp3_data_decode\n");
+
+    hci_control_audio_hclk_change(WICED_TRUE, WICED_CPU_CLK_96MHZ);
+
+    wiced_bt_mp3_decoder_pcm_samples_generate();
+
+    hci_control_audio_hclk_change(WICED_FALSE, WICED_CPU_CLK_96MHZ);
+
+    hci_control_audio_mp3_data_request();
+
+    return 0;
+}
+
+/*
+ * hci_control_audio_mp3_data_request
+ *
+ * Request MP3 data from host device.
+ */
+static void hci_control_audio_mp3_data_request(void)
+{
+    uint32_t len;
+    hci_audio_data_req_t audio_req;
+
+    /* Calculate the length of MP3 data to be requested. */
+    len = wiced_bt_mp3_decoder_source_data_available_space_get();
+
+    if (len < (HCI_CONTROL_AUDIO_MP3_DATA_DEFAULT_LEN * HCI_CONTROL_AUDIO_MP3_DATA_RX_TOLERATE_DEGREE))
+    {
+        return;
+    }
+
+    /* Request MP3 data from host device. */
+    audio_req.packet_audio_size = HCI_CONTROL_AUDIO_MP3_DATA_DEFAULT_LEN;
+    audio_req.packet_num        = 1;
+    audio_req.req_packet_count  = 1;
+    audio_req.rx_packet_count   = 0;
+
+    wiced_transport_send_data(HCI_CONTROL_AUDIO_EVENT_REQUEST_DATA, (uint8_t *) &audio_req, sizeof(audio_req));
+}
+
+static void hci_control_audio_hclk_change(wiced_bool_t enable, wiced_cpu_clk_freq_t freq)
+{
+    wiced_transport_uart_interrupt_disable();
+
+    /* Pause UART Rx. */
+    wiced_transport_uart_rx_pause();
+
+    /* Set HCLK. */
+    wiced_update_cpu_clock(enable, freq);
+
+    /* Resume UART Rx. */
+    wiced_transport_uart_rx_resume();
+
+    wiced_transport_uart_interrupt_enable();
+}
+
+static void hci_control_audio_mp3_audio_info_update_handler(wiced_bt_mp3_decoder_audio_frame_into_t *p_audio_info)
+{
+    uint8_t new_sf;
+    uint8_t new_chcfg;
+
+    WICED_BT_TRACE("hci_control_audio_mp3_audio_info_update_handler (%s) (%d, %s)\n",
+                   dump_state_name(av_app_cb.state),
+                   p_audio_info->sampling_rate == WICED_BT_MP3_SAMPLING_RATE_44100 ? 44100 :
+                   p_audio_info->sampling_rate == WICED_BT_MP3_SAMPLING_RATE_48000 ? 48000 :
+                   p_audio_info->sampling_rate == WICED_BT_MP3_SAMPLING_RATE_32000 ? 32000 : 0,
+                   p_audio_info->channel == WICED_BT_MP3_CHANNEL_STEREO ? "Stereo" :
+                   p_audio_info->channel == WICED_BT_MP3_CHANNEL_JOINT_STEREO ? "Joint Stereo" :
+                   p_audio_info->channel == WICED_BT_MP3_CHANNEL_DUAL ? "Dual" :
+                   p_audio_info->channel == WICED_BT_MP3_CHANNEL_MONO ? "Mono" : "x");
+
+    /* Convert sampling rate to A2DP format. */
+    new_sf = hci_control_audio_mp3_utils_sampling_rate_to_a2d_format(p_audio_info->sampling_rate);
+
+    /* Convert channel configuration to A2DP format. */
+    new_chcfg = hci_control_audio_mp3_utils_channel_to_a2d_format(p_audio_info->channel);
+
+    /* Send AVDTP_RECONFIGURE command to the sink device. */
+    av_app_reconfigure_req(new_sf, new_chcfg);
+}
+
+/*
+ * Convert channel configuration to A2DP format
+ *
+ * Default is AUDIO_CHCFG_STEREO
+ */
+static uint8_t hci_control_audio_mp3_utils_channel_to_a2d_format(wiced_bt_mp3_channel_t channel)
+{
+    switch (channel)
+    {
+    case WICED_BT_MP3_CHANNEL_STEREO:
+    case WICED_BT_MP3_CHANNEL_JOINT_STEREO:
+    case WICED_BT_MP3_CHANNEL_DUAL:
+        return AUDIO_CHCFG_STEREO;
+
+    case WICED_BT_MP3_CHANNEL_MONO:
+        return AUDIO_CHCFG_MONO;
+
+    default:
+        break;
+    }
+
+    return AUDIO_CHCFG_STEREO;
+}
+
+/*
+ * Convert sampling rate to A2DP format
+ *
+ * Default is AUDIO_SF_48K
+ */
+static uint8_t hci_control_audio_mp3_utils_sampling_rate_to_a2d_format(wiced_bt_mp3_sampling_rate_t sampling_rate)
+{
+    switch (sampling_rate)
+    {
+    case WICED_BT_MP3_SAMPLING_RATE_44100:
+        return AUDIO_SF_44_1K;
+
+    case WICED_BT_MP3_SAMPLING_RATE_48000:
+        return AUDIO_SF_48K;
+
+    case WICED_BT_MP3_SAMPLING_RATE_32000:
+        return AUDIO_SF_32K;
+
+    default:
+        break;
+    }
+
+    return AUDIO_SF_48K;
+}
+
+#endif // MP3_DECODER_INCLUDED

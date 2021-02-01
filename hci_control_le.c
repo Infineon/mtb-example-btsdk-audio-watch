@@ -1,10 +1,10 @@
 /*
- * Copyright 2016-2020, Cypress Semiconductor Corporation or a subsidiary of
- * Cypress Semiconductor Corporation. All Rights Reserved.
+ * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
- * materials ("Software"), is owned by Cypress Semiconductor Corporation
- * or one of its subsidiaries ("Cypress") and is protected by and subject to
+ * materials ("Software") is owned by Cypress Semiconductor Corporation
+ * or one of its affiliates ("Cypress") and is protected by and subject to
  * worldwide patent protection (United States and foreign),
  * United States copyright laws and international treaty provisions.
  * Therefore, you may use this Software only as provided in the license
@@ -13,7 +13,7 @@
  * If no EULA applies, Cypress hereby grants you a personal, non-exclusive,
  * non-transferable license to copy, modify, and compile the Software
  * source code solely for use in connection with Cypress's
- * integrated circuit products. Any reproduction, modification, translation,
+ * integrated circuit products.  Any reproduction, modification, translation,
  * compilation, or representation of this Software except as specified
  * above is prohibited without the express written permission of Cypress.
  *
@@ -65,6 +65,10 @@ wiced_timer_t hci_control_le_connect_timer;
 BD_ADDR  hci_control_le_remote_bdaddr;
 
 hci_control_le_pending_tx_buffer_t hci_control_le_pending_tx_buffer;
+
+#if BTSTACK_VER >= 0x01020000
+wiced_bt_db_hash_t watch_db_hash;
+#endif
 
 /******************************************************
  *               Function Definitions
@@ -124,7 +128,12 @@ void hci_control_le_enable(const wiced_bt_cfg_settings_t *settings)
     WICED_BT_TRACE( "wiced_bt_gatt_register status %d\n", gatt_status );
 
     /*  GATT DB Initialization */
+#if BTSTACK_VER >= 0x01020000
+    gatt_status = wiced_bt_gatt_db_init(gatt_database, gatt_database_len,
+            watch_db_hash);
+#else
     gatt_status = wiced_bt_gatt_db_init(gatt_database, gatt_database_len);
+#endif
 
     WICED_BT_TRACE("wiced_bt_gatt_db_init %d\n", gatt_status);
 

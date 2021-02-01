@@ -1,10 +1,10 @@
 /*
- * Copyright 2016-2020, Cypress Semiconductor Corporation or a subsidiary of
- * Cypress Semiconductor Corporation. All Rights Reserved.
+ * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
- * materials ("Software"), is owned by Cypress Semiconductor Corporation
- * or one of its subsidiaries ("Cypress") and is protected by and subject to
+ * materials ("Software") is owned by Cypress Semiconductor Corporation
+ * or one of its affiliates ("Cypress") and is protected by and subject to
  * worldwide patent protection (United States and foreign),
  * United States copyright laws and international treaty provisions.
  * Therefore, you may use this Software only as provided in the license
@@ -13,7 +13,7 @@
  * If no EULA applies, Cypress hereby grants you a personal, non-exclusive,
  * non-transferable license to copy, modify, and compile the Software
  * source code solely for use in connection with Cypress's
- * integrated circuit products. Any reproduction, modification, translation,
+ * integrated circuit products.  Any reproduction, modification, translation,
  * compilation, or representation of this Software except as specified
  * above is prohibited without the express written permission of Cypress.
  *
@@ -132,8 +132,9 @@
  *     "Value Indicate" : Write indication value to the remote handle
  *
  *  HFP Audio Gateway:
- *  - Targets CYW920721B2EVK-02 and CYW9M2BASE-43012BT support HFP Audio Gateway. Build with "HFP_AG_INCLUDED=1"
- *    to enable AG. (disable Handsfree Unit simultaneously)
+ *  - These targets support HFP Audio Gateway:
+ *    CYW920721B2EVK-02, CYW920721M2EVK-01, CYW920721M2EVK-02, CYW9M2BASE-43012BT and CYW943012BTEVK-01
+ *  - Build with "HFP_AG_INCLUDED=1" to enable AG. (disable Handsfree Unit simultaneously)
  *  - The Watch app can demonstrate how to use HFP AG as below.
  *  - Make a HFP Headset (headphone or earbuds) discoverable and pairable by its specific behavior.
  *  - In ClientControl, click on "Start" button for "BR/EDR Discovery" combo box to find the Headset device.
@@ -143,7 +144,8 @@
  *  - Click "Audio Disconnect" button to remove SCO connection.
 
  *  HFP Handsfree Unit:
- *  - Targets CYW920721B2EVK-02 and CYW9M2BASE-43012BT support HFP Handsfree Unit as default.
+ *  - These targets support HFP Hands-free Unit by default:
+ *    CYW920721B2EVK-02, CYW920721M2EVK-01, CYW920721M2EVK-02, CYW9M2BASE-43012BT and CYW943012BTEVK-01
  *  - To create handsfree connection with remote Audio Gateway (AG) device (such as mobile phone), using
  *    ClientControl and choose the Bluetooth address of the remote AG device from the BR/EDR combo box.
  *    Click "Connect" button under HF tab.
@@ -279,7 +281,15 @@ hci_control_cb_t  hci_control_cb;
 #endif
 
 wiced_transport_buffer_pool_t* transport_pool;   // Trans pool for sending the RFCOMM data to host
+#if BTSTACK_VER >= 0x01020000
+wiced_bt_pool_t                *p_key_info_pool;  //Pool for storing the  key info
+#else
 wiced_bt_buffer_pool_t*        p_key_info_pool;  //Pool for storing the  key info
+#endif
+
+#if BTSTACK_VER >= 0x01020000
+extern wiced_bt_heap_t *p_default_heap;
+#endif
 
 // memory optimizations
 #if defined(CYW43012C0)
@@ -293,7 +303,11 @@ uint8_t g_wiced_memory_pre_init_num_ble_rl = 16;
  ******************************************************/
 static void hci_control_transport_status( wiced_transport_type_t type );
 static uint32_t hci_control_proc_rx_cmd( uint8_t *p_data, uint32_t length );
+#ifdef NEW_DYNAMIC_MEMORY_INCLUDED
+static void hci_control_transport_tx_cplt_cback(void);
+#else
 static void hci_control_transport_tx_cplt_cback(wiced_transport_buffer_pool_t* p_pool);
+#endif
 static void hci_control_handle_reset_cmd( void );
 static void hci_control_handle_trace_enable( uint8_t *p_data );
 static void hci_control_device_handle_command( uint16_t cmd_opcode, uint8_t* p_data, uint32_t data_len );
@@ -309,6 +323,9 @@ static void hci_control_handle_user_confirmation( uint8_t *p_bda, uint8_t accept
 static void hci_control_handle_read_buffer_stats( void );
 static void hci_control_send_device_started_evt( void );
 extern wiced_result_t wiced_bt_avrc_ct_cleanup( void );
+#if (defined(SLEEP_SUPPORTED) && (SLEEP_SUPPORTED == WICED_TRUE))
+static void hci_control_sleep_configure(void);
+#endif
 
 /******************************************************************************
  *                                Variable/Structure/type Definitions
@@ -378,11 +395,20 @@ const wiced_transport_cfg_t transport_cfg =
             .baud_rate =  HCI_UART_DEFAULT_BAUD
         },
     },
+#ifdef NEW_DYNAMIC_MEMORY_INCLUDED
+    .heap_config =
+    {
+        .data_heap_size = 1024 * 4 + 1500 * 2,
+        .hci_trace_heap_size = 1024 * 2,
+        .debug_trace_heap_size = 1024,
+    },
+#else
     .rx_buff_pool_cfg =
     {
         .buffer_size  = TRANS_UART_BUFFER_SIZE,
         .buffer_count = WICED_TRANSPORT_BUFFER_COUNT
     },
+#endif
     .p_status_handler    = hci_control_transport_status,
     .p_data_handler      = hci_control_proc_rx_cmd,
     .p_tx_complete_cback = hci_control_transport_tx_cplt_cback
@@ -443,7 +469,12 @@ void hci_control_post_init(void)
     wiced_bt_dev_register_hci_trace(hci_control_hci_packet_cback);
 
     // Creating a buffer pool for holding the peer devices's key info
+#if BTSTACK_VER >= 0x01020000
+    p_key_info_pool = wiced_bt_create_pool("pki", KEY_INFO_POOL_BUFFER_SIZE,
+            KEY_INFO_POOL_BUFFER_COUNT, NULL);
+#else
     p_key_info_pool = wiced_bt_create_pool( KEY_INFO_POOL_BUFFER_SIZE, KEY_INFO_POOL_BUFFER_COUNT );
+#endif
     if (p_key_info_pool == NULL)
         WICED_BT_TRACE("Err: wiced_bt_create_pool failed\n");
 
@@ -657,7 +688,7 @@ void hci_control_write_eir( void )
     UINT8_TO_STREAM(p, 0x00);
 
     // print EIR data
-    wiced_bt_trace_array( "EIR :", ( uint8_t* )( pBuf+1 ), MIN( p - ( uint8_t* )pBuf, 100 ) );
+    wiced_bt_trace_array( "EIR :", ( uint8_t* )( pBuf ), MIN( p - ( uint8_t* )pBuf, 100 ) );
     wiced_bt_dev_write_eir( pBuf, (uint16_t)(p - pBuf) );
 
     /* Allocated buffer not anymore needed. Free it */
@@ -676,7 +707,11 @@ void hci_control_hci_packet_cback( wiced_bt_hci_trace_type_t type, uint16_t leng
 {
 #if (WICED_HCI_TRANSPORT == WICED_HCI_TRANSPORT_UART)
     // send the trace
+#ifdef NEW_DYNAMIC_MEMORY_INCLUDED
+    wiced_transport_send_hci_trace(type, p_data, length);
+#else
     wiced_transport_send_hci_trace( NULL, type, length, p_data  );
+#endif
 #endif
 
     if ( !test_command.test_executing )
@@ -779,7 +814,9 @@ static uint32_t hci_control_proc_rx_cmd( uint8_t *p_buffer, uint32_t length )
     if(( length < 4 ) || (p_data == NULL))
     {
         WICED_BT_TRACE("invalid params\n");
+#ifndef NEW_DYNAMIC_MEMORY_INCLUDED
         wiced_transport_free_buffer( p_buffer );
+#endif
         return HCI_CONTROL_STATUS_INVALID_ARGS;
     }
 
@@ -820,21 +857,21 @@ static uint32_t hci_control_proc_rx_cmd( uint8_t *p_buffer, uint32_t length )
             hci_control_avrc_handle_command( opcode, p_data, payload_len );
         }
         else
-        {
 #endif
-#ifdef WICED_APP_LE_SLAVE_CLIENT_INCLUDED
-        if ( wiced_bt_ams_client_connection_check() )
         {
-            hci_control_ams_handle_command( opcode, p_data, payload_len );
-        }
-        else
+#ifdef WICED_APP_LE_SLAVE_CLIENT_INCLUDED
+            if ( wiced_bt_ams_client_connection_check() )
+            {
+                hci_control_ams_handle_command( opcode, p_data, payload_len );
+            }
+            else
 #endif
 #ifdef WICED_APP_AUDIO_RC_CT_INCLUDED
-        {
-            hci_control_avrc_handle_ctrlr_command(opcode, p_data, payload_len);
+            {
+                hci_control_avrc_handle_ctrlr_command(opcode, p_data, payload_len);
             }
-        }
 #endif
+        }
         break;
 
 #ifdef WICED_APP_TEST_INCLUDED
@@ -871,8 +908,10 @@ static uint32_t hci_control_proc_rx_cmd( uint8_t *p_buffer, uint32_t length )
     }
     if (buffer_processed)
     {
+#ifndef NEW_DYNAMIC_MEMORY_INCLUDED
         // Freeing the buffer in which data is received
         wiced_transport_free_buffer( p_buffer );
+#endif
     }
 
     return HCI_CONTROL_STATUS_SUCCESS;
@@ -1005,6 +1044,33 @@ void hci_control_handle_set_local_bda( uint8_t *p_bda)
  */
 void hci_control_handle_read_buffer_stats( void )
 {
+#if BTSTACK_VER >= 0x01020000
+    /*
+     * Get statistics of default heap.
+     * TODO: get statistics of stack heap (btu_cb.p_heap)
+     */
+    wiced_bt_heap_statistics_t heap_stat;
+
+    if (wiced_bt_get_heap_statistics(p_default_heap, &heap_stat))
+    {
+        WICED_BT_TRACE("--- heap_size:%d ---\n", heap_stat.heap_size);
+        WICED_BT_TRACE("max_single_allocation:%d max_heap_size_used:%d\n",
+                heap_stat.max_single_allocation,
+                heap_stat.max_heap_size_used);
+        WICED_BT_TRACE("allocation_failure_count:%d current_largest_free_size:%d\n",
+                heap_stat.allocation_failure_count,
+                heap_stat.current_largest_free_size);
+        WICED_BT_TRACE("current_num_allocations:%d current_size_allocated:%d\n",
+                heap_stat.current_num_allocations,
+                heap_stat.current_size_allocated);
+        WICED_BT_TRACE("current_num_free_fragments:%d current_free_size\n",
+                heap_stat.current_num_free_fragments,
+                heap_stat.current_free_size);
+
+        wiced_transport_send_data(HCI_CONTROL_EVENT_READ_BUFFER_STATS,
+                (uint8_t *)&heap_stat, sizeof(heap_stat));
+    }
+#else /* !BTSTACK_VER */
     uint8_t buff_pools = 0;
 #ifdef WICEDX
 #define BUFF_POOLS 5
@@ -1034,7 +1100,9 @@ void hci_control_handle_read_buffer_stats( void )
         // Return the stats via WICED-HCI
         wiced_transport_send_data( HCI_CONTROL_EVENT_READ_BUFFER_STATS, (uint8_t*)&buff_stats, sizeof( buff_stats ) );
     }
-    else {
+    else
+#endif /* BTSTACK_VER */
+    {
         hci_control_send_command_status_evt( HCI_CONTROL_EVENT_COMMAND_STATUS, HCI_CONTROL_STATUS_FAILED );
     }
 }
@@ -1712,15 +1780,25 @@ void hci_control_switch_avrcp_role(uint8_t new_role)
  * hci_control_transport_tx_cplt_cback.
  * This function is called when a Transport Buffer has been sent to the MCU
  */
-static void hci_control_transport_tx_cplt_cback( wiced_transport_buffer_pool_t* p_pool )
+#ifdef NEW_DYNAMIC_MEMORY_INCLUDED
+static void hci_control_transport_tx_cplt_cback(void)
+{
+    return;
+}
+#else
+static void hci_control_transport_tx_cplt_cback(wiced_transport_buffer_pool_t* p_pool)
 {
     WICED_BT_TRACE( " hci_control_transport_tx_cplt_cback %x \n", p_pool );
 }
+#endif
 
 static void hci_control_transport_status( wiced_transport_type_t type )
 {
     WICED_BT_TRACE( " hci_control_transport_status %x \n", type );
     hci_control_send_device_started_evt();
+#ifdef SWITCH_PTU_CHECK
+    platform_transport_started = 1;
+#endif
 }
 
 void hci_control_switch_hfp_role( uint8_t new_role )

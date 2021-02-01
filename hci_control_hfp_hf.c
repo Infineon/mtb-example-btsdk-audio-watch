@@ -1,10 +1,10 @@
 /*
- * Copyright 2016-2020, Cypress Semiconductor Corporation or a subsidiary of
- * Cypress Semiconductor Corporation. All Rights Reserved.
+ * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
- * materials ("Software"), is owned by Cypress Semiconductor Corporation
- * or one of its subsidiaries ("Cypress") and is protected by and subject to
+ * materials ("Software") is owned by Cypress Semiconductor Corporation
+ * or one of its affiliates ("Cypress") and is protected by and subject to
  * worldwide patent protection (United States and foreign),
  * United States copyright laws and international treaty provisions.
  * Therefore, you may use this Software only as provided in the license
@@ -13,7 +13,7 @@
  * If no EULA applies, Cypress hereby grants you a personal, non-exclusive,
  * non-transferable license to copy, modify, and compile the Software
  * source code solely for use in connection with Cypress's
- * integrated circuit products. Any reproduction, modification, translation,
+ * integrated circuit products.  Any reproduction, modification, translation,
  * compilation, or representation of this Software except as specified
  * above is prohibited without the express written permission of Cypress.
  *
@@ -521,9 +521,14 @@ static void handsfree_hfp_init(void)
  */
 void hci_control_hf_init(void)
 {
+    wiced_result_t result;
+
     handsfree_app_states.pairing_allowed = WICED_FALSE;
-    wiced_init_timer( &handsfree_app_states.hfp_timer, hfp_timer_expiry_handler, 0,
-            WICED_MILLI_SECONDS_TIMER );
+    result = wiced_init_timer(&handsfree_app_states.hfp_timer, hfp_timer_expiry_handler, 0, WICED_MILLI_SECONDS_TIMER);
+    if (result != WICED_SUCCESS)
+    {
+        WICED_BT_TRACE("ERROR wiced_init_timer %u\n", result);
+    }
     handsfree_hfp_init();
 }
 

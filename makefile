@@ -1,10 +1,10 @@
 #
-# Copyright 2016-2020, Cypress Semiconductor Corporation or a subsidiary of
-# Cypress Semiconductor Corporation. All Rights Reserved.
+# Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+# an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
 #
 # This software, including source code, documentation and related
-# materials ("Software"), is owned by Cypress Semiconductor Corporation
-# or one of its subsidiaries ("Cypress") and is protected by and subject to
+# materials ("Software") is owned by Cypress Semiconductor Corporation
+# or one of its affiliates ("Cypress") and is protected by and subject to
 # worldwide patent protection (United States and foreign),
 # United States copyright laws and international treaty provisions.
 # Therefore, you may use this Software only as provided in the license
@@ -13,7 +13,7 @@
 # If no EULA applies, Cypress hereby grants you a personal, non-exclusive,
 # non-transferable license to copy, modify, and compile the Software
 # source code solely for use in connection with Cypress's
-# integrated circuit products. Any reproduction, modification, translation,
+# integrated circuit products.  Any reproduction, modification, translation,
 # compilation, or representation of this Software except as specified
 # above is prohibited without the express written permission of Cypress.
 #
@@ -51,7 +51,10 @@ SUPPORTED_TARGETS = \
   CYW920820EVB-02 \
   CYW920719B2Q40EVB-01 \
   CYW920706WCDEVAL \
-  CYW9M2BASE-43012BT
+  CYW9M2BASE-43012BT \
+  CYW920721M2EVK-01 \
+  CYW920721M2EVK-02 \
+  CYW943012BTEVK-01
 
 #
 # Advanced Configuration
@@ -88,18 +91,21 @@ HCI_TEST_INCLUDED := 1
 LE_INCLUDED := 1
 ANCS_INCLUDED := 1
 AMA_INCLUDED := 0
+MP3_DECODER_INCLUDED ?= 1
 ENABLE_DEBUG?=0
 
 SLEEP_SUPPORT ?= 0
 COEX_SUPPORT ?= 0
 AUTO_ELNA_SWITCH ?= 0
 
+-include internal.mk
+
 # Default feature on Specific Platform
 ifeq ($(TARGET),$(filter $(TARGET),  CYW920719B2Q40EVB-01 CYW920721B2EVK-03))
 HFP_AG_INCLUDED = 0
 endif
 
-ifeq ($(TARGET),$(filter $(TARGET), CYW920721B2EVK-02 CYW920721M2EVK-01 CYW920721M2EVK-02 CYW9M2BASE-43012BT))
+ifeq ($(TARGET),$(filter $(TARGET), CYW920721B2EVK-02 CYW920721M2EVK-01 CYW920721M2EVK-02 CYW9M2BASE-43012BT CYW943012BTEVK-01))
 ifeq ($(HFP_AG_INCLUDED),1)
 HFP_HF_INCLUDED = 0
 else
@@ -271,15 +277,6 @@ COMPONENTS += audio_record_lib
 COMPONENTS += nanopbuf
 endif
 
-ifeq ($(OTA_FW_UPGRADE),1)
-CY_APP_DEFINES += -DOTA_FW_UPGRADE=1
-COMPONENTS += fw_upgrade_lib
-OTA_SEC_FW_UPGRADE ?= 0
-ifeq ($(OTA_SEC_FW_UPGRADE), 1)
-	CY_APP_DEFINES += -DOTA_SECURE_FIRMWARE_UPGRADE
-endif
-endif
-
 #
 # Target Configuration
 #
@@ -319,10 +316,38 @@ COMPONENTS += cyw9bt_audio
 COMPONENTS += codec_ak4679_lib
 CY_APP_DEFINES += -DAK_4679_CODEC_ENABLE
 CY_APP_DEFINES += -DCYW9BT_AUDIO
+OTA_FW_UPGRADE = 0
+SLEEP_SUPPORT = 0
 endif # TARGET
+
+ifeq ($(TARGET),CYW943012BTEVK-01)
+COMPONENTS += audiomanager
+COMPONENTS += cyw9bt_audio2
+COMPONENTS += codec_cs47l35_lib
+CY_APP_DEFINES += -DCS47L35_CODEC_ENABLE
+CY_APP_DEFINES += -DCYW9BT_AUDIO
+OTA_FW_UPGRADE = 0
+SLEEP_SUPPORT = 0
+endif # TARGET
+
+ifeq ($(TARGET),$(filter $(TARGET), CYW920721B2EVK-02 CYW920721B2EVK-03 CYW920721M2EVK-01 CYW920721M2EVK-02))
+ifeq ($(MP3_DECODER_INCLUDED), 1)
+COMPONENTS += mp3_decoder_lib
+CY_APP_DEFINES += -DMP3_DECODER_INCLUDED
+endif # MP3_DECODER_INCLUDED
+endif # 20721B2
 
 ifeq ($(AUTO_ELNA_SWITCH),1)
 CY_APP_DEFINES += -DAUTO_ELNA_SWITCH
+endif
+
+ifeq ($(OTA_FW_UPGRADE),1)
+CY_APP_DEFINES += -DOTA_FW_UPGRADE=1
+COMPONENTS += fw_upgrade_lib
+OTA_SEC_FW_UPGRADE ?= 0
+ifeq ($(OTA_SEC_FW_UPGRADE), 1)
+    CY_APP_DEFINES += -DOTA_SECURE_FIRMWARE_UPGRADE
+endif
 endif
 
 ################################################################################
@@ -373,7 +398,6 @@ endif
 # tools that can be launched with "make open CY_OPEN_TYPE=<tool>
 CY_BT_APP_TOOLS=BTSpy ClientControl
 
--include internal.mk
 ifeq ($(filter $(TARGET),$(SUPPORTED_TARGETS)),)
 $(error TARGET $(TARGET) not supported for this code example)
 endif
