@@ -170,7 +170,9 @@
 #include <wiced_bt_ancs.h>
 #include <wiced_bt_avrc.h>
 #include <wiced_bt_avrc_defs.h>
+#ifdef WICED_APP_AUDIO_RC_TG_INCLUDED
 #include <wiced_bt_avrc_tg.h>
+#endif
 #include <wiced_bt_ble.h>
 #include <wiced_bt_cfg.h>
 #include <wiced_bt_gatt.h>
@@ -724,6 +726,7 @@ void hci_control_hci_packet_cback( wiced_bt_hci_trace_type_t type, uint16_t leng
     }
 }
 
+#ifdef WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
 /*
  * Process HCI commands from the MCU
  */
@@ -779,7 +782,9 @@ static void hci_control_ams_handle_command(uint16_t opcode, uint8_t *p_data, uin
 
     hci_control_send_command_status_evt(HCI_CONTROL_AVRC_CONTROLLER_EVENT_COMMAND_STATUS, status);
 }
+#endif /* WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED */
 
+#ifdef WICED_APP_ANCS_INCLUDED
 /*
  * Process HCI commands from the MCU
  */
@@ -792,6 +797,7 @@ static void hci_control_ancs_handle_command(uint16_t opcode, uint8_t *p_data, ui
     hci_control_send_command_status_evt(HCI_CONTROL_ANCS_EVENT_COMMAND_STATUS,
                                         result ? HCI_CONTROL_STATUS_SUCCESS : HCI_CONTROL_STATUS_FAILED );
 }
+#endif /* WICED_APP_ANCS_INCLUDED */
 
 /*
  * Handle received command over UART. Please refer to the WICED Smart Ready
@@ -859,7 +865,7 @@ static uint32_t hci_control_proc_rx_cmd( uint8_t *p_buffer, uint32_t length )
         else
 #endif
         {
-#ifdef WICED_APP_LE_SLAVE_CLIENT_INCLUDED
+#ifdef WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
             if ( wiced_bt_ams_client_connection_check() )
             {
                 hci_control_ams_handle_command( opcode, p_data, payload_len );
@@ -1217,7 +1223,11 @@ void hci_control_handle_set_pairability ( uint8_t pairing_allowed )
         if ( pairing_allowed )
         {
             // Check if key buffer pool has buffer available. If not, cannot enable pairing until nvram entries are deleted
+#if BTSTACK_VER > 0x01020000
+            if (wiced_bt_get_pool_free_count(p_key_info_pool) <= 0)
+#else
             if (wiced_bt_get_buffer_count(p_key_info_pool) <= 0)
+#endif
             {
                 WICED_BT_TRACE( "Err: No more memory for Pairing\n" );
                 pairing_allowed = 0; //The key buffer pool is full therefore we cannot allow pairing to be enabled
@@ -1291,12 +1301,20 @@ void hci_control_send_device_started_evt( void )
 {
     wiced_transport_send_data( HCI_CONTROL_EVENT_DEVICE_STARTED, NULL, 0 );
 
+#if BTSTACK_VER > 0x01020000
+    WICED_BT_TRACE( "maxChannels:%d maxpsm:%d rfcom max links%d, rfcom max ports:%d\n",
+            wiced_bt_cfg_settings.p_l2cap_app_cfg->max_app_l2cap_channels,
+            wiced_bt_cfg_settings.p_l2cap_app_cfg->max_app_l2cap_psms,
+            wiced_bt_cfg_settings.p_br_cfg->rfcomm_cfg.max_links,
+            wiced_bt_cfg_settings.p_br_cfg->rfcomm_cfg.max_ports );
+#else
     WICED_BT_TRACE( "maxLinks:%d maxChannels:%d maxpsm:%d rfcom max links%d, rfcom max ports:%d\n",
             wiced_bt_cfg_settings.l2cap_application.max_links,
             wiced_bt_cfg_settings.l2cap_application.max_channels,
             wiced_bt_cfg_settings.l2cap_application.max_psm,
             wiced_bt_cfg_settings.rfcomm_cfg.max_links,
             wiced_bt_cfg_settings.rfcomm_cfg.max_ports );
+#endif
 }
 
 /*

@@ -56,7 +56,9 @@
 static void hci_control_send_encapsulated_hci_event( uint8_t * p_data, uint16_t length );
 static void wiced_bt_send_test_command( uint16_t opcode, uint8_t* params, uint8_t params_length );
 
+#ifndef BTSTACK_VER
 extern void btu_hcif_send_cmd (uint8_t controller_id, BT_HDR *p_buf);
+#endif
 
 /******************************************************************************
  *                          Variable Definitions
@@ -116,8 +118,6 @@ void hci_control_handle_hci_test_event( uint8_t * p_data, uint16_t length )
 
 static void wiced_bt_send_test_command( uint16_t opcode, uint8_t* params, uint8_t params_length )
 {
-    BT_HDR          *p_command;
-    uint8_t         *p;
     wiced_result_t  status;
 
     if ( ( opcode >> 10 ) == 0x3F ) // Vendor Specific Command
@@ -131,6 +131,9 @@ static void wiced_bt_send_test_command( uint16_t opcode, uint8_t* params, uint8_
         /* TODO: allocate buffer for sending HCI command */
 
 #else
+        BT_HDR  *p_command;
+        uint8_t *p;
+
         if ( ( p_command = HCI_GET_CMD_BUF( params_length ) ) == NULL )
         {
             hci_control_send_command_status_evt( HCI_CONTROL_EVENT_COMMAND_STATUS, HCI_CONTROL_STATUS_FAILED );

@@ -36,7 +36,9 @@
  * This file implements the entry point of the Wiced Application
  */
 #include <sparcommon.h>
+#ifdef WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
 #include <wiced_bt_ams.h>
+#endif
 #ifdef WICED_APP_HFP_AG_INCLUDED
 #include "hci_control_hfp_ag.h"
 #include <wiced_bt_hfp_ag.h>
@@ -63,7 +65,7 @@
 #include "hci_control.h"
 #include "hci_control_le.h"
 #include "hci_control_rc_controller.h"
-#include "le_slave.h"
+#include "le_peripheral.h"
 #include "wiced_app_cfg.h"
 #include "wiced_app.h"
 #ifdef CYW9BT_AUDIO
@@ -90,6 +92,19 @@ static void write_eir(void);
 static wiced_result_t btm_event_handler(wiced_bt_management_evt_t event, wiced_bt_management_evt_data_t *p_event_data);
 static wiced_result_t btm_enabled_event_handler(wiced_bt_dev_enabled_t *event_data);
 
+#if defined(CYW20819A1)
+#include "wiced_memory_pre_init.h"
+/* override weak version of this struct to adjust memory for audio application */
+WICED_MEM_PRE_INIT_CONTROL g_mem_pre_init =
+{
+    .max_ble_connections = WICED_MEM_PRE_INIT_IGNORE,
+    .max_peripheral_piconet = WICED_MEM_PRE_INIT_IGNORE, /* use to reduce bt connections */
+    .max_resolving_list = WICED_MEM_PRE_INIT_IGNORE,
+    .onfound_list_len = 0,
+    .max_multi_adv_instances = WICED_MEM_PRE_INIT_IGNORE,
+};
+#endif
+
 /*
  * Application Start, ie, entry point to the application.
  */
@@ -108,14 +123,18 @@ APPLICATION_START()
     wiced_set_debug_uart(WICED_ROUTE_DEBUG_TO_WICED_UART);
 #endif // CYW43012C0
 #else
+#ifdef CYW55572
+    // wiced_platform_init already handled it
+#else /* !CYW55572 */
     wiced_hal_puart_init();
-    wiced_set_debug_uart( WICED_ROUTE_DEBUG_TO_PUART );
 #if ( defined(CYW20706A2) )
     wiced_hal_puart_set_baudrate( 3000000 );
     wiced_hal_puart_select_uart_pads( WICED_PUART_RXD, WICED_PUART_TXD, 0, 0);
 #else
     wiced_hal_puart_configuration( 3000000, PARITY_NONE, STOP_BIT_2 );
 #endif // CYW20706A2
+#endif /* CYW55572 */
+    wiced_set_debug_uart( WICED_ROUTE_DEBUG_TO_PUART );
 #endif // NO_PUART_SUPPORT
 #endif // WICED_BT_TRACE_ENABLE
 
@@ -152,8 +171,8 @@ APPLICATION_START()
     hci_control_le_init();
 #endif
 
-#ifdef WICED_APP_LE_SLAVE_CLIENT_INCLUDED
-    le_slave_app_init();
+#ifdef WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
+    le_peripheral_app_init();
 #endif
 #ifndef DEBUG
     //Enable the bt coex functionality
@@ -309,9 +328,9 @@ wiced_result_t btm_event_handler(wiced_bt_management_evt_t event, wiced_bt_manag
 
             WICED_BT_TRACE( "Encryption Status:(%B) res:%d\n", p_encryption_status->bd_addr, p_encryption_status->result );
 
-#ifdef WICED_APP_LE_SLAVE_CLIENT_INCLUDED
+#ifdef WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
             if (p_encryption_status->transport == BT_TRANSPORT_LE)
-                le_slave_encryption_status_changed(p_encryption_status);
+                le_peripheral_encryption_status_changed(p_encryption_status);
 #endif
             hci_control_send_encryption_changed_evt( p_encryption_status->result, p_encryption_status->bd_addr );
             break;

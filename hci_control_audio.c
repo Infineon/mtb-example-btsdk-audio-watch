@@ -2317,7 +2317,11 @@ void avdt_init( )
     av_app_cb.avdt_register.sig_tout  = AV_SIG_TOUT;        /* AV_SIG_TOUT = 4 */
     av_app_cb.avdt_register.idle_tout = AV_IDLE_TOUT;       /* AV_IDLE_TOUT = 10 */
     /* Security mask, AV_SEC_MASK = none */
+#if BTSTACK_VER > 0x01020000
+    av_app_cb.avdt_register.sec_mask  = wiced_bt_cfg_settings.security_required;
+#else
     av_app_cb.avdt_register.sec_mask  = wiced_bt_cfg_settings.security_requirement_mask;
+#endif
 
     /* Stream connection parameters */
     memset(&av_app_cb.stream_cb, 0, sizeof(wiced_bt_avdt_cs_t));

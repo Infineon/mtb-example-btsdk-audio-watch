@@ -46,7 +46,6 @@ TARGET=CYW920819EVB-02
 
 SUPPORTED_TARGETS = \
   CYW920819EVB-02 \
-  CYW920721B2EVK-03 \
   CYW920721B2EVK-02 \
   CYW920820EVB-02 \
   CYW920719B2Q40EVB-01 \
@@ -178,7 +177,7 @@ endif
 
 ifeq ($(LE_INCLUDED), 1)
 CY_APP_DEFINES += -DWICED_APP_LE_INCLUDED
-CY_APP_DEFINES += -DWICED_APP_LE_SLAVE_CLIENT_INCLUDED
+CY_APP_DEFINES += -DWICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
 endif
 
 ifeq ($(ANCS_INCLUDED), 1)
@@ -399,6 +398,6 @@ endif
 CY_BT_APP_TOOLS=BTSpy ClientControl
 
 ifeq ($(filter $(TARGET),$(SUPPORTED_TARGETS)),)
-$(error TARGET $(TARGET) not supported for this code example)
+$(error TARGET $(TARGET) not supported for this application. Edit SUPPORTED_TARGETS in the code example makefile to add new BSPs)
 endif
 include $(CY_TOOLS_DIR)/make/start.mk

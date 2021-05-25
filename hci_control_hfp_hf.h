@@ -92,7 +92,8 @@
                                           WICED_BT_HFP_HF_FEATURE_ENHANCED_CALL_STATUS | \
                                           WICED_BT_HFP_HF_FEATURE_ENHANCED_CALL_CONTROL | \
                                           WICED_BT_HFP_HF_FEATURE_CODEC_NEGOTIATION | \
-                                          WICED_BT_HFP_HF_FEATURE_HF_INDICATORS)
+                                          WICED_BT_HFP_HF_FEATURE_HF_INDICATORS | \
+                                          WICED_BT_HFP_HF_FEATURE_ENHANCED_VOICE_RECOGNITION)
 #else
 #define SUPPORTED_FEATURES_ATT          ( WICED_BT_HFP_HF_SDP_FEATURE_ECNR | \
                                           WICED_BT_HFP_HF_SDP_FEATURE_3WAY_CALLING | \
@@ -106,7 +107,8 @@
                                           WICED_BT_HFP_HF_FEATURE_REMOTE_VOLUME_CONTROL| \
                                           WICED_BT_HFP_HF_FEATURE_ENHANCED_CALL_STATUS | \
                                           WICED_BT_HFP_HF_FEATURE_ENHANCED_CALL_CONTROL | \
-                                          WICED_BT_HFP_HF_FEATURE_HF_INDICATORS)
+                                          WICED_BT_HFP_HF_FEATURE_HF_INDICATORS | \
+                                          WICED_BT_HFP_HF_FEATURE_ENHANCED_VOICE_RECOGNITION)
 #endif
 
 /** HF device indicators. */

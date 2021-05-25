@@ -51,15 +51,19 @@
 #include "wiced_bt_avrc_tg.h"
 #include "wiced_bt_audio.h"
 #include "wiced_bt_avdt.h"
+#include "cycfg_gatt_db.h"
 
 #ifdef WICED_APP_HFP_HF_INCLUDED
 #include "hci_control_hfp_hf.h"
+#endif
+#ifdef WICED_APP_HFP_AG_INCLUDED
+#include "hci_control_hfp_ag.h"
 #endif
 
 /* If APP_AVRC_TRACK_INFO_SUPPORTED, APP_AVRC_PLAY_STATUS_SUPPORTED or APP_AVRC_SETTING_CHANGE_SUPPORTED are supported, set the AVRC profile
  version as 1.3, else set it to 1.0 */
 #if (defined(APP_AVRC_TRACK_INFO_SUPPORTED) || defined(APP_AVRC_PLAY_STATUS_SUPPORTED) || defined(APP_AVRC_SETTING_CHANGE_SUPPORTED))
-#define AVRC_PROFILE_VER  AVRC_REV_1_5
+#define AVRC_PROFILE_VER  AVRC_REV_1_6
 #else
 #define AVRC_PROFILE_VER  AVRC_REV_1_0
 #endif
@@ -105,9 +109,151 @@ const uint8_t pincode[WICED_PIN_CODE_LEN] = { 0x30, 0x30, 0x30, 0x30 };
 /*****************************************************************************
  * wiced_bt core stack configuration
  ****************************************************************************/
+#if BTSTACK_VER > 0x01020000
+/* BLE SCAN Setting */
+const wiced_bt_cfg_ble_scan_settings_t wiced_bt_cfg_scan_settings =
+{
+    .scan_mode = BTM_BLE_SCAN_MODE_ACTIVE, /**< BLE scan mode ( BTM_BLE_SCAN_MODE_PASSIVE, BTM_BLE_SCAN_MODE_ACTIVE, or BTM_BLE_SCAN_MODE_NONE ) */
+
+    /* Advertisement scan configuration */
+    .high_duty_scan_interval = 96, /**< High duty scan interval */
+    .high_duty_scan_window = 48,   /**< High duty scan window */
+    .high_duty_scan_duration = 30, /**< High duty scan duration in seconds */
+
+    .low_duty_scan_interval = 2048,/**< Low duty scan interval  */
+    .low_duty_scan_window = 48,    /**< Low duty scan window */
+    .low_duty_scan_duration = 60,  /**< Low duty scan duration in seconds */
+
+    /* Connection scan configuration */
+    .high_duty_conn_scan_interval = 96, /**< High duty cycle connection scan interval */
+    .high_duty_conn_scan_window = 48,   /**< High duty cycle connection scan window */
+    .high_duty_conn_duration = 30,      /**< High duty cycle connection duration in seconds */
+
+    .low_duty_conn_scan_interval = 2048, /**< Low duty cycle connection scan interval */
+    .low_duty_conn_scan_window = 48,    /**< Low duty cycle connection scan window */
+    .low_duty_conn_duration = 30,       /**< Low duty cycle connection duration in seconds */
+
+    /* Connection configuration */
+    .conn_min_interval = 112,                                                  /**< Minimum connection interval */
+    .conn_max_interval = 128,                                                  /**< Maximum connection interval */
+    .conn_latency = WICED_BT_CFG_DEFAULT_CONN_LATENCY,                         /**< Connection latency */
+    .conn_supervision_timeout = WICED_BT_CFG_DEFAULT_CONN_SUPERVISION_TIMEOUT, /**< Connection link supervision timeout */
+};
+
+/* BLE ADV Setting */
+const wiced_bt_cfg_ble_advert_settings_t wiced_bt_cfg_adv_settings =
+{
+    .channel_map = BTM_BLE_ADVERT_CHNL_37 | /**< Advertising channel map ( mask of BTM_BLE_ADVERT_CHNL_37, BTM_BLE_ADVERT_CHNL_38, BTM_BLE_ADVERT_CHNL_39 ) */
+    BTM_BLE_ADVERT_CHNL_38 |
+    BTM_BLE_ADVERT_CHNL_39,
+
+    .high_duty_min_interval          = WICED_BT_CFG_DEFAULT_HIGH_DUTY_ADV_MIN_INTERVAL,            /**< High duty undirected connectable minimum advertising interval */
+    .high_duty_max_interval          = WICED_BT_CFG_DEFAULT_HIGH_DUTY_ADV_MAX_INTERVAL,            /**< High duty undirected connectable maximum advertising interval */
+    .high_duty_duration              = 30,                                                         /**< High duty undirected connectable advertising duration in seconds */
+
+    .low_duty_min_interval           = WICED_BT_CFG_DEFAULT_LOW_DUTY_ADV_MIN_INTERVAL,             /**< Low duty undirected connectable minimum advertising interval */
+    .low_duty_max_interval           = WICED_BT_CFG_DEFAULT_LOW_DUTY_ADV_MAX_INTERVAL,             /**< Low duty undirected connectable maximum advertising interval */
+    .low_duty_duration               = 60,                                                         /**< Low duty undirected connectable advertising duration in seconds */
+
+    .high_duty_directed_min_interval = WICED_BT_CFG_DEFAULT_HIGH_DUTY_DIRECTED_ADV_MIN_INTERVAL, /**< High duty directed connectable minimum advertising interval */
+    .high_duty_directed_max_interval = WICED_BT_CFG_DEFAULT_HIGH_DUTY_DIRECTED_ADV_MAX_INTERVAL, /**< High duty directed connectable maximum advertising interval */
+
+    .low_duty_directed_min_interval  = WICED_BT_CFG_DEFAULT_LOW_DUTY_DIRECTED_ADV_MIN_INTERVAL, /**< Low duty directed connectable minimum advertising interval */
+    .low_duty_directed_max_interval  = WICED_BT_CFG_DEFAULT_LOW_DUTY_DIRECTED_ADV_MAX_INTERVAL, /**< Low duty directed connectable maximum advertising interval */
+    .low_duty_directed_duration      = 30,                                                          /**< Low duty directed connectable advertising duration in seconds */
+
+    .high_duty_nonconn_min_interval  = WICED_BT_CFG_DEFAULT_HIGH_DUTY_NONCONN_ADV_MIN_INTERVAL, /**< High duty non-connectable minimum advertising interval */
+    .high_duty_nonconn_max_interval  = WICED_BT_CFG_DEFAULT_HIGH_DUTY_NONCONN_ADV_MAX_INTERVAL, /**< High duty non-connectable maximum advertising interval */
+    .high_duty_nonconn_duration      = 30,                                                          /**< High duty non-connectable advertising duration in seconds */
+
+    .low_duty_nonconn_min_interval   = WICED_BT_CFG_DEFAULT_LOW_DUTY_NONCONN_ADV_MIN_INTERVAL, /**< Low duty non-connectable minimum advertising interval */
+    .low_duty_nonconn_max_interval   = WICED_BT_CFG_DEFAULT_LOW_DUTY_NONCONN_ADV_MAX_INTERVAL, /**< Low duty non-connectable maximum advertising interval */
+    .low_duty_nonconn_duration       = 0,                                                          /**< Low duty non-connectable advertising duration in seconds */
+};
+
+/* L2CAP Setting */
+const wiced_bt_cfg_l2cap_application_t wiced_bt_cfg_l2cap_app = /* Application managed l2cap protocol configuration */
+{
+    /* BR EDR l2cap configuration */
+    .max_app_l2cap_psms = 0,      /**< Maximum number of application-managed BR/EDR PSMs */
+    .max_app_l2cap_channels = 0, /**< Maximum number of application-managed BR/EDR channels  */
+
+    .max_app_l2cap_br_edr_ertm_chnls = 0,  /**< Maximum ERTM channels allowed */
+    .max_app_l2cap_br_edr_ertm_tx_win = 0, /**< Maximum ERTM TX Window allowed */
+                            /* LE L2cap connection-oriented channels configuration */
+    .max_app_l2cap_le_fixed_channels = 0,
+};
+
+/* BR Setting */
+const wiced_bt_cfg_br_t wiced_bt_cfg_br =
+{
+    .br_max_simultaneous_links = 3,
+    .br_max_rx_pdu_size = 1024,
+    .device_class = {0x20, 0x07, 0x04},                     /**< Local device class */
+
+    .rfcomm_cfg = /* RFCOMM configuration */
+    {
+        .max_links = WICED_BT_RFCOMM_MAX_CONN, /**< Maximum number of simultaneous connected remote devices. Should be less than or equal to l2cap_application_max_links */
+        .max_ports = WICED_BT_RFCOMM_MAX_CONN, /**< Maximum number of simultaneous RFCOMM ports */
+    },
+    .avdt_cfg = /* Audio/Video Distribution configuration */
+    {
+        .max_links = 1,     /**< Maximum simultaneous audio/video links */
+        .max_seps  = 3,     /**< Maximum number of stream end points */
+    },
+    .avrc_cfg = /* Audio/Video Remote Control configuration */
+    {
+        .max_links = 1, /**< Maximum simultaneous remote control links */
+    },
+};
+
+/* ISOC Setting */
+const wiced_bt_cfg_isoc_t wiced_bt_cfg_isoc =
+{
+    .max_cis_conn = 0,
+    .max_cig_count = 0,
+    .max_sdu_size = 0,
+    .channel_count = 0,
+    .max_buffers_per_cis = 0,
+};
+
+/* BLE Setting */
+const wiced_bt_cfg_ble_t wiced_bt_cfg_ble =
+{
+    .ble_max_simultaneous_links = 3,
+    .ble_max_rx_pdu_size = 365,
+    .appearance = APPEARANCE_GENERIC_TAG,    /**< GATT appearance (see gatt_appearance_e) */
+    .rpa_refresh_timeout = WICED_BT_CFG_DEFAULT_RANDOM_ADDRESS_NEVER_CHANGE,   /**< Interval of  random address refreshing - secs */
+    .host_addr_resolution_db_size = 5, /**< LE Address Resolution DB settings - effective only for pre 4.2 controller*/
+    .p_ble_scan_cfg = &wiced_bt_cfg_scan_settings,
+    .p_ble_advert_cfg = &wiced_bt_cfg_adv_settings,
+    .default_ble_power_level = 12,  /**< Default BLE Power */
+};
+
+/* GATT Setting */
+const wiced_bt_cfg_gatt_t wiced_bt_cfg_gatt =
+{
+    .max_db_service_modules = 0,  /**< Maximum number of service modules in the DB*/
+    .max_eatt_bearers = 0,        /**< Maximum number of allowed gatt bearers */
+};
+
+ /* wiced_bt core stack configuration */
 const wiced_bt_cfg_settings_t wiced_bt_cfg_settings =
 {
-    .device_name                         = (uint8_t *)WICED_DEVICE_NAME,                               /**< Local device name (NULL terminated) */
+    .device_name = (uint8_t*)app_gap_device_name,            /**< Local device name ( NULL terminated ) */
+    .security_required = (BTM_SEC_BEST_EFFORT),             /**< Security requirements mask */
+
+    .p_br_cfg = &wiced_bt_cfg_br,
+    .p_ble_cfg = &wiced_bt_cfg_ble,
+    .p_gatt_cfg = &wiced_bt_cfg_gatt,
+    .p_isoc_cfg = &wiced_bt_cfg_isoc,
+    .p_l2cap_app_cfg = &wiced_bt_cfg_l2cap_app,
+};
+
+#else /* !BTSTACK_VER || BTSTACK_VER == 0x01020000 */
+const wiced_bt_cfg_settings_t wiced_bt_cfg_settings =
+{
+    .device_name                         = (uint8_t*)app_gap_device_name,                               /**< Local device name (NULL terminated). Use same as configurator generated string.*/
     .device_class                        = {0x20, 0x07, 0x04},                                         /**< Local device class */
     .security_requirement_mask           = (  BTM_SEC_IN_AUTHENTICATE | BTM_SEC_OUT_AUTHENTICATE | BTM_SEC_ENCRYPT ), /**< Security requirements mask (BTM_SEC_NONE, or combinination of BTM_SEC_IN_AUTHENTICATE, BTM_SEC_OUT_AUTHENTICATE, BTM_SEC_ENCRYPT (see #wiced_bt_sec_level_e)) */
 
@@ -131,20 +277,20 @@ const wiced_bt_cfg_settings_t wiced_bt_cfg_settings =
         /* Advertisement scan configuration */
         .high_duty_scan_interval         = 96,                                                         /**< High duty scan interval */
         .high_duty_scan_window           = 48,                                                         /**< High duty scan window */
-        .high_duty_scan_duration         = 30,                                                         /**< High duty scan duration in seconds (0 for infinite) */
+        .high_duty_scan_duration         = 30,                                                         /**< High duty scan duration in seconds */
 
         .low_duty_scan_interval          = 2048,                                                       /**< Low duty scan interval  */
         .low_duty_scan_window            = 48,                                                         /**< Low duty scan window */
-        .low_duty_scan_duration          = 60,                                                         /**< Low duty scan duration in seconds (0 for infinite) */
+        .low_duty_scan_duration          = 60,                                                         /**< Low duty scan duration in seconds */
 
         /* Connection scan configuration */
         .high_duty_conn_scan_interval    = 96,                                                         /**< High duty cycle connection scan interval */
         .high_duty_conn_scan_window      = 48,                                                         /**< High duty cycle connection scan window */
-        .high_duty_conn_duration         = 30,                                                         /**< High duty cycle connection duration in seconds (0 for infinite) */
+        .high_duty_conn_duration         = 30,                                                         /**< High duty cycle connection duration in seconds */
 
         .low_duty_conn_scan_interval     = 2048,                                                       /**< Low duty cycle connection scan interval */
         .low_duty_conn_scan_window       = 48,                                                         /**< Low duty cycle connection scan window */
-        .low_duty_conn_duration          = 30,                                                         /**< Low duty cycle connection duration in seconds (0 for infinite) */
+        .low_duty_conn_duration          = 30,                                                         /**< Low duty cycle connection duration in seconds */
 
         /* Connection configuration */
         .conn_min_interval               = 112,                                                        /**< Minimum connection interval */
@@ -161,26 +307,26 @@ const wiced_bt_cfg_settings_t wiced_bt_cfg_settings =
 
         .high_duty_min_interval          = WICED_BT_CFG_DEFAULT_HIGH_DUTY_ADV_MIN_INTERVAL,            /**< High duty undirected connectable minimum advertising interval */
         .high_duty_max_interval          = WICED_BT_CFG_DEFAULT_HIGH_DUTY_ADV_MAX_INTERVAL,            /**< High duty undirected connectable maximum advertising interval */
-        .high_duty_duration              = 30,                                                         /**< High duty undirected connectable advertising duration in seconds (0 for infinite) */
+        .high_duty_duration              = 30,                                                         /**< High duty undirected connectable advertising duration in seconds */
 
         .low_duty_min_interval           = WICED_BT_CFG_DEFAULT_LOW_DUTY_ADV_MIN_INTERVAL,             /**< Low duty undirected connectable minimum advertising interval */
         .low_duty_max_interval           = WICED_BT_CFG_DEFAULT_LOW_DUTY_ADV_MAX_INTERVAL,             /**< Low duty undirected connectable maximum advertising interval */
-        .low_duty_duration               = 60,                                                         /**< Low duty undirected connectable advertising duration in seconds (0 for infinite) */
+        .low_duty_duration               = 60,                                                         /**< Low duty undirected connectable advertising duration in seconds */
 
         .high_duty_directed_min_interval = WICED_BT_CFG_DEFAULT_HIGH_DUTY_DIRECTED_ADV_MIN_INTERVAL,   /**< High duty directed connectable minimum advertising interval */
         .high_duty_directed_max_interval = WICED_BT_CFG_DEFAULT_HIGH_DUTY_DIRECTED_ADV_MAX_INTERVAL,   /**< High duty directed connectable maximum advertising interval */
 
         .low_duty_directed_min_interval  = WICED_BT_CFG_DEFAULT_LOW_DUTY_DIRECTED_ADV_MIN_INTERVAL,    /**< Low duty directed connectable minimum advertising interval */
         .low_duty_directed_max_interval  = WICED_BT_CFG_DEFAULT_LOW_DUTY_DIRECTED_ADV_MAX_INTERVAL,    /**< Low duty directed connectable maximum advertising interval */
-        .low_duty_directed_duration      = 30,                                                         /**< Low duty directed connectable advertising duration in seconds (0 for infinite) */
+        .low_duty_directed_duration      = 30,                                                         /**< Low duty directed connectable advertising duration in seconds */
 
         .high_duty_nonconn_min_interval  = WICED_BT_CFG_DEFAULT_HIGH_DUTY_NONCONN_ADV_MIN_INTERVAL,    /**< High duty non-connectable minimum advertising interval */
         .high_duty_nonconn_max_interval  = WICED_BT_CFG_DEFAULT_HIGH_DUTY_NONCONN_ADV_MAX_INTERVAL,    /**< High duty non-connectable maximum advertising interval */
-        .high_duty_nonconn_duration      = 30,                                                         /**< High duty non-connectable advertising duration in seconds (0 for infinite) */
+        .high_duty_nonconn_duration      = 30,                                                         /**< High duty non-connectable advertising duration in seconds */
 
         .low_duty_nonconn_min_interval   = WICED_BT_CFG_DEFAULT_LOW_DUTY_NONCONN_ADV_MIN_INTERVAL,     /**< Low duty non-connectable minimum advertising interval */
         .low_duty_nonconn_max_interval   = WICED_BT_CFG_DEFAULT_LOW_DUTY_NONCONN_ADV_MAX_INTERVAL,     /**< Low duty non-connectable maximum advertising interval */
-        .low_duty_nonconn_duration       = 0                                                           /**< Low duty non-connectable advertising duration in seconds (0 for infinite) */
+        .low_duty_nonconn_duration       = 0                                                           /**< Low duty non-connectable advertising duration in seconds */
     },
 
     .gatt_cfg =                                                     /* GATT configuration */
@@ -191,11 +337,6 @@ const wiced_bt_cfg_settings_t wiced_bt_cfg_settings =
         .max_attr_len                   = 360,                                                         /**< Maximum attribute length; gki_cfg must have a corresponding buffer pool that can hold this length */
 #if !defined(CYW20706A2)
         .max_mtu_size                   = 365,                                                         /**< Maximum MTU size for GATT connections, should be between 23 and (max_attr_len + 5) */
-#endif
-#if BTSTACK_VER > 0x01020000
-        .max_db_service_modules         = 10,                                                          /**< Maximum number of service modules in the DB*/
-        .max_gatt_bearers               = 3,                                                           /**< Maximum number of allowed gatt bearers */
-        .use_gatt_over_br_edr           = 1,                                                           /**< set to 1 to enable gatt over br edr */
 #endif
     },
 
@@ -220,7 +361,7 @@ const wiced_bt_cfg_settings_t wiced_bt_cfg_settings =
         /* LE L2cap fixed channel configuration */
         .max_le_l2cap_fixed_channels    = 1,                                                            /**< Maximum number of application managed fixed channels supported (in addition to mandatory channels 4, 5 and 6). > */
 #endif
-#if BTSTACK_VER >= 0x01020000
+#if BTSTACK_VER == 0x01020000
         .max_rx_mtu                     = 1000,                                                        /**< Maximum RX MTU allowed */
         .max_ertm_chnls                 = 0,                                                           /**< Maximum ERTM channels */
         .max_ertm_tx_win                = 0,                                                           /**< Maximum ERTM TX Window */
@@ -242,13 +383,6 @@ const wiced_bt_cfg_settings_t wiced_bt_cfg_settings =
         .max_links                      = 1                                                            /**< Maximum simultaneous remote control links */
     },
 
-#if BTSTACK_VER > 0x01020000
-    .hidd_cfg =                                                                                        /**< Hidd configuration */
-    {
-        .max_links                      = 0,                                                           /**< Maximum number of hid servers connected */
-    },
-#endif
-
     /* LE Address Resolution DB size  */
     .addr_resolution_db_size            = 5,                                                           /**< LE Address Resolution DB settings - effective only for pre 4.2 controller*/
 
@@ -263,31 +397,22 @@ const wiced_bt_cfg_settings_t wiced_bt_cfg_settings =
 
     /* Interval of  random address refreshing */
     .rpa_refresh_timeout                = WICED_BT_CFG_DEFAULT_RANDOM_ADDRESS_NEVER_CHANGE,            /**< Interval of  random address refreshing - secs */
-#if BTSTACK_VER >= 0x01020000
+#if BTSTACK_VER == 0x01020000
     .stack_scratch_size                 = WICED_BT_CFG_DEFAULT_STACK_SCRATCH_SIZE,                     /**< Memory area reserved for the stack transient memory requirements */
 #endif
-    /* BLE white list size */
-    .ble_white_list_size                = 2,                                                           /**< Maximum number of white list devices allowed. Cannot be more than 128 */
+    /* BLE Filter Accept List size */
+    .ble_filter_accept_list_size                = 2,                                                           /**< Maximum number of Filter Accept List devices allowed. Cannot be more than 128 */
 #endif
 
-#if defined(CYW20719B2) || defined(CYW20721B2) || defined(CYW20819A1) || defined (CYW20820A1) || BTSTACK_VER >= 0x01020000
+#if defined(CYW20719B2) || defined(CYW20721B2) || defined(CYW20819A1) || defined (CYW20820A1) || BTSTACK_VER == 0x01020000
     .default_ble_power_level            = 12,                                                           /**< Default LE power level, Refer lm_TxPwrTable table for the power range */
 #endif
 #if BTSTACK_VER == 0x01020000
     .max_gatt_bearers                   = 3,                                                           /**< Maximum number of allowed gatt bearers */
     .use_gatt_over_br_edr               = 1,                                                           /**< set to 1 to enable gatt over br edr */
-#elif BTSTACK_VER > 0x01020000
-    .num_vse_callbacks                  = 0,
-    .isoc_cfg =                                                                                        /**< Ischoronous Connection configuration */
-    {
-        .max_cis_conn                   = 0,                                                           /**< Max Number of CIS connections */
-        .max_cig_count                  = 0,                                                           /**< Max Number of CIG connections */
-        .max_sdu_size                   = 0,
-        .max_buffers_per_cis            = 0,
-    },
-    .max_num_app_dtcb                   = 0,
 #endif
 };
+#endif /* BTSTACK_VER */
 
 #ifdef WICED_APP_AUDIO_SRC_INCLUDED
 #define SLEN_A2DP_SRC   (56 + 2)
@@ -305,7 +430,7 @@ const wiced_bt_cfg_settings_t wiced_bt_cfg_settings =
 #define SLEN_AVRC_CT    0
 #endif
 #ifdef WICED_APP_HFP_AG_INCLUDED
-#define SLEN_HFP_AG     (49 + 2)
+#define SLEN_HFP_AG     (60 + 2)
 #else
 #define SLEN_HFP_AG     0
 #endif
@@ -383,20 +508,22 @@ const uint8_t wiced_app_cfg_sdp_record[] =
         SDP_ATTR_ID(ATTR_ID_BT_PROFILE_DESC_LIST), SDP_ATTR_SEQUENCE_1(8),
             SDP_ATTR_SEQUENCE_1(6),
                 SDP_ATTR_UUID16(UUID_SERVCLASS_AV_REMOTE_CONTROL),
-                SDP_ATTR_VALUE_UINT2(AVRC_REV_1_5),
+                SDP_ATTR_VALUE_UINT2(AVRC_REV_1_6),
         SDP_ATTR_UINT2(ATTR_ID_SUPPORTED_FEATURES, AVRC_SUPF_CT_CAT2),
 #endif
 
 #ifdef WICED_APP_HFP_AG_INCLUDED
-    // SDP record for HFP AG ( total length of record: 51 )
-    SDP_ATTR_SEQUENCE_1( 49 ),                                              // 2 bytes, length of the record
+    // SDP record for HFP AG ( total length of record: 62 )
+    SDP_ATTR_SEQUENCE_1( 60 ),                                              // 2 bytes, length of the record
         SDP_ATTR_RECORD_HANDLE( HANDLE_HFP_AG ),                            // 8 byte ( handle=0x10004 )
         SDP_ATTR_ID( ATTR_ID_SERVICE_CLASS_ID_LIST ),                       // 3 bytes
             SDP_ATTR_SEQUENCE_1( 6 ),                                       // 2 bytes
                 SDP_ATTR_UUID16( UUID_SERVCLASS_AG_HANDSFREE ),             // 3 bytes ServiceClass0 UUID_SERVCLASS_AG_HANDSFREE
                 SDP_ATTR_UUID16( UUID_SERVCLASS_GENERIC_AUDIO ),            // 3 bytes ServiceClass1 UUID_SERVCLASS_GENERIC_AUDIO
         SDP_ATTR_RFCOMM_PROTOCOL_DESC_LIST( 1 ),                            // 17 bytes ( SCN=1 )
-        SDP_ATTR_PROFILE_DESC_LIST( UUID_SERVCLASS_AG_HANDSFREE, 0x0105 ),  // 13 bytes UUID_SERVCLASS_HF_HANDSFREE, version 0x0105
+        SDP_ATTR_PROFILE_DESC_LIST( UUID_SERVCLASS_AG_HANDSFREE, 0x0108 ),  // 13 bytes UUID_SERVCLASS_HF_HANDSFREE, version 0x0105
+		SDP_ATTR_UINT1(ATTR_ID_NETWORK, 0x00),                                  // 5 byte
+		SDP_ATTR_UINT2(ATTR_ID_SUPPORTED_FEATURES,  AG_SUPPORTED_FEATURES_ATT), //6 bytes
 #endif
 
 #ifdef WICED_APP_HFP_HF_INCLUDED
@@ -411,7 +538,7 @@ const uint8_t wiced_app_cfg_sdp_record[] =
         SDP_ATTR_ID(ATTR_ID_BT_PROFILE_DESC_LIST), SDP_ATTR_SEQUENCE_1(8),
             SDP_ATTR_SEQUENCE_1(6),
                 SDP_ATTR_UUID16(UUID_SERVCLASS_HF_HANDSFREE),
-                SDP_ATTR_VALUE_UINT2(0x0107),
+                SDP_ATTR_VALUE_UINT2(0x0108),
         SDP_ATTR_SERVICE_NAME(15),
             'W', 'I', 'C', 'E', 'D', ' ', 'H', 'F', ' ', 'D', 'E', 'V', 'I', 'C', 'E',
         SDP_ATTR_UINT2(ATTR_ID_SUPPORTED_FEATURES, SUPPORTED_FEATURES_ATT),

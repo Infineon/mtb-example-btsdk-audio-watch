@@ -232,7 +232,7 @@ wiced_result_t app_avrc_hci_control_volume(uint8_t* p_data, uint32_t len);
 wiced_result_t hci_control_send_avrc_target_event(int type, uint16_t handle);
 
 void wiced_bt_trace_array(const char *string, const uint8_t* array, const uint16_t len);
-void le_slave_encryption_status_changed(wiced_bt_dev_encryption_status_t *p_status);
+void le_peripheral_encryption_status_changed(wiced_bt_dev_encryption_status_t *p_status);
 void hci_control_le_scan_state_changed(wiced_bt_ble_scan_type_t state);
 void hci_control_le_advert_state_changed(wiced_bt_ble_advert_mode_t mode);
 uint8_t hci_control_audio_handle_command(uint16_t cmd_opcode, uint8_t* p_data, uint32_t len);

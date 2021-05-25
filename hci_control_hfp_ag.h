@@ -39,7 +39,20 @@
 #ifndef __HCI_CONTROL_HFP_AG_H_
 #define __HCI_CONTROL_HFP_AG_H_
 
+#ifdef WICED_APP_HFP_AG_INCLUDED
+#include "wiced_bt_hfp_ag.h"
+#endif
+
 #define HCI_CONTROL_AG_NUM_SCB          2           /* Max simultaneous connections to HFs */
+
+/* AG Supported Feature */
+#if (BTM_WBS_INCLUDED == TRUE )
+#define AG_SUPPORTED_FEATURES_ATT          ( WICED_BT_HFP_AG_SDP_FEATURE_VRECG | \
+                                             WICED_BT_HFP_AG_SDP_FEATURE_WIDEBAND_SPEECH )
+#else
+#define AG_SUPPORTED_FEATURES_ATT          ( WICED_BT_HFP_AG_SDP_FEATURE_VRECG )
+
+#endif
 
 /*
  * Audio Gateway init

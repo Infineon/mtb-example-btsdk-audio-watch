@@ -82,20 +82,14 @@ void gatt_client_indication_handler(wiced_bt_gatt_operation_complete_t *p_data);
 void time_client_indication_handler(wiced_bt_gatt_operation_complete_t *p_data);
 void findme_client_indication_handler(wiced_bt_gatt_operation_complete_t *p_data);
 
-void le_slave_app_init(void);
-void le_slave_connection_up(wiced_bt_gatt_connection_status_t *p_conn_status);
-void le_slave_connection_down(wiced_bt_gatt_connection_status_t *p_conn_status);
-void le_slave_encryption_status_changed(wiced_bt_dev_encryption_status_t *p_status);
+void le_peripheral_app_init(void);
+void le_peripheral_connection_up(wiced_bt_gatt_connection_status_t *p_conn_status);
+void le_peripheral_connection_down(wiced_bt_gatt_connection_status_t *p_conn_status);
+void le_peripheral_encryption_status_changed(wiced_bt_dev_encryption_status_t *p_status);
 
-wiced_bt_gatt_status_t le_slave_gatt_operation_complete(wiced_bt_gatt_operation_complete_t *p_data);
-wiced_bt_gatt_status_t le_slave_gatt_discovery_result  (wiced_bt_gatt_discovery_result_t *p_data);
-wiced_bt_gatt_status_t le_slave_gatt_discovery_complete(wiced_bt_gatt_discovery_complete_t *p_data);
-wiced_bt_gatt_status_t le_slave_gatt_req_cb(wiced_bt_gatt_attribute_request_t *p_req);
-
-void serial_gatt_service_connection_up(wiced_bt_gatt_connection_status_t *p_conn_status);
-void serial_gatt_service_connection_down(wiced_bt_gatt_connection_status_t *p_conn_status);
-wiced_bt_gatt_status_t serial_gatt_service_write_handler(uint16_t conn_id, wiced_bt_gatt_write_t *p_write_req);
-wiced_bt_gatt_status_t serial_gatt_service_read_handler(uint16_t conn_id, wiced_bt_gatt_read_t *p_read_req);
-wiced_bt_gatt_status_t serial_gatt_service_mtu_handler(uint16_t conn_id, uint16_t mtu);
+wiced_bt_gatt_status_t le_peripheral_gatt_operation_complete(wiced_bt_gatt_operation_complete_t *p_data);
+wiced_bt_gatt_status_t le_peripheral_gatt_discovery_result  (wiced_bt_gatt_discovery_result_t *p_data);
+wiced_bt_gatt_status_t le_peripheral_gatt_discovery_complete(wiced_bt_gatt_discovery_complete_t *p_data);
+wiced_bt_gatt_status_t le_peripheral_gatt_req_cb(wiced_bt_gatt_attribute_request_t *p_req);
 
 #endif

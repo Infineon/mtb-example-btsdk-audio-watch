@@ -67,7 +67,7 @@
 *
 */
 
-#include "le_slave.h"
+#include "le_peripheral.h"
 
 #include "wiced_bt_dev.h"
 #include "wiced_bt_ble.h"
@@ -83,14 +83,18 @@
 #include "wiced_result.h"
 
 #include "hci_control_api.h"
+#ifdef WICED_APP_ANCS_INCLUDED
 #include "wiced_bt_ancs.h"
+#endif
+#ifdef WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
 #include "wiced_bt_ams.h"
+#endif
 #include "hci_control.h"
 #include "string.h"
 #include "wiced_memory.h"
 #include "wiced_transport.h"
 
-#ifdef WICED_APP_LE_SLAVE_CLIENT_INCLUDED
+#ifdef WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
 
 
 /******************************************************
@@ -109,14 +113,14 @@ static void                   watch_process_write_rsp      (wiced_bt_gatt_operat
 static void                   watch_notification_handler   (wiced_bt_gatt_operation_complete_t *p_data);
 static void                   watch_indication_handler     (wiced_bt_gatt_operation_complete_t *p_data);
 
-static void                   slave_timeout                 (uint32_t count);
+static void                   peripheral_timeout           (uint32_t count);
 
-static void                   watch_init_next_client        (void);
+static void                   watch_init_next_client       (void);
 
 /******************************************************
  *               Variables Definitions
  ******************************************************/
-#ifdef CYW55572A0
+#ifdef CYW55572
 #ifndef PACKED
 #define PACKED
 #endif
@@ -147,7 +151,7 @@ watch_app_state_t watch_app_state;
  *               Function Definitions
  ******************************************************/
 
-static void le_slave_ancs_client_event_handler_notification(wiced_bt_ancs_client_notification_data_t *p_data)
+static void le_peripheral_ancs_client_event_handler_notification(wiced_bt_ancs_client_notification_data_t *p_data)
 {
     // Allocating a buffer to send the trace
     uint8_t *p_tx_buf = (uint8_t *) wiced_bt_get_buffer(sizeof(wiced_bt_ancs_client_notification_data_t));
@@ -188,7 +192,7 @@ static void le_slave_ancs_client_event_handler_notification(wiced_bt_ancs_client
     }
 }
 
-static void le_slave_ancs_client_event_handler(wiced_bt_ancs_client_event_t event, wiced_bt_ancs_client_event_data_t *p_data)
+static void le_peripheral_ancs_client_event_handler(wiced_bt_ancs_client_event_t event, wiced_bt_ancs_client_event_data_t *p_data)
 {
     switch (event)
     {
@@ -197,7 +201,7 @@ static void le_slave_ancs_client_event_handler(wiced_bt_ancs_client_event_t even
         break;
 
     case WICED_BT_ANCS_CLIENT_EVENT_NOTIFICATION:
-        le_slave_ancs_client_event_handler_notification(p_data->notification.p_data);
+        le_peripheral_ancs_client_event_handler_notification(p_data->notification.p_data);
         break;
 
     default:
@@ -208,21 +212,21 @@ static void le_slave_ancs_client_event_handler(wiced_bt_ancs_client_event_t even
 /*
  * This function is executed in the BTM_ENABLED_EVT management callback.
  */
-void le_slave_app_init(void)
+void le_peripheral_app_init(void)
 {
     wiced_bt_ancs_client_config_t ancs_client_config = {0};
 
     memset(&watch_hostinfo, 0, sizeof(watch_hostinfo));
     memset(&watch_app_state, 0, sizeof(watch_app_state));
 
-    if (wiced_init_timer(&watch_app_state.timer, slave_timeout, 0,
+    if (wiced_init_timer(&watch_app_state.timer, peripheral_timeout, 0,
             WICED_SECONDS_TIMER ) != WICED_SUCCESS)
     {
-        WICED_BT_TRACE("Err: wiced_init_timer le_slave failed\n");
+        WICED_BT_TRACE("Err: wiced_init_timer le_peripheral failed\n");
     }
 
     /* Initialize the ANCS client. */
-    ancs_client_config.p_event_handler = &le_slave_ancs_client_event_handler;
+    ancs_client_config.p_event_handler = &le_peripheral_ancs_client_event_handler;
 
     if (wiced_bt_ancs_client_initialize(&ancs_client_config) == WICED_FALSE)
     {
@@ -231,9 +235,9 @@ void le_slave_app_init(void)
 }
 
 /*
- * This function will be called when a connection is established in LE Slave Role
+ * This function will be called when a connection is established in LE Peripheral Role
  */
-void le_slave_connection_up(wiced_bt_gatt_connection_status_t *p_conn_status)
+void le_peripheral_connection_up(wiced_bt_gatt_connection_status_t *p_conn_status)
 {
     watch_app_state.conn_id = p_conn_status->conn_id;
 
@@ -246,13 +250,13 @@ void le_slave_connection_up(wiced_bt_gatt_connection_status_t *p_conn_status)
 
     wiced_bt_ams_client_connection_up(p_conn_status);
 
-    /* Connected as Slave. Start discovery in couple of seconds to give time to the peer device
+    /* Connected as Peripheral. Start discovery in couple of seconds to give time to the peer device
      * to find/configure our services */
     wiced_start_timer(&watch_app_state.timer, 2);
 }
 
 // This function will be called when connection goes down
-void le_slave_connection_down(wiced_bt_gatt_connection_status_t *p_conn_status)
+void le_peripheral_connection_down(wiced_bt_gatt_connection_status_t *p_conn_status)
 {
     watch_app_state.conn_id = 0;
     watch_app_state.encrypted = WICED_FALSE;
@@ -267,7 +271,7 @@ void le_slave_connection_down(wiced_bt_gatt_connection_status_t *p_conn_status)
 
 
 // Process encryption status changed notification from the stack
-void le_slave_encryption_status_changed(wiced_bt_dev_encryption_status_t *p_status)
+void le_peripheral_encryption_status_changed(wiced_bt_dev_encryption_status_t *p_status)
 {
     wiced_result_t result;
     uint8_t role;
@@ -276,22 +280,22 @@ void le_slave_encryption_status_changed(wiced_bt_dev_encryption_status_t *p_stat
     if (p_status->result != WICED_BT_SUCCESS)
         return;
 
-    /* Check if it's a Slave/Client device */
+    /* Check if it's a Peripheral/Client device */
     if (memcmp(watch_app_state.remote_addr, p_status->bd_addr, sizeof(watch_app_state.remote_addr)))
     {
         /* Handle Race condition with already paired iPhone. In this case,
          * BTM_ENCRYPTION_STATUS_EVT is received before GATT_CONNECTION_STATUS_EVT
          */
         result = wiced_bt_dev_get_role(p_status->bd_addr, &role, BT_TRANSPORT_LE);
-        if ((result != WICED_BT_SUCCESS) || (role != HCI_ROLE_SLAVE))
+        if ((result != WICED_BT_SUCCESS) || (role != HCI_ROLE_PERIPHERAL))
         {
-            /* This is, definitely, not a Slave LE connection. Ignore it. */
+            /* This is, definitely, not a Peripheral LE connection. Ignore it. */
             return;
         }
     }
 
     watch_app_state.encrypted = WICED_TRUE;
-    WICED_BT_TRACE("LE Slave Link is Encrypted\n");
+    WICED_BT_TRACE("LE Peripheral Link is Encrypted\n");
 
     /* Handle race connection again. If GATT_CONNECTION_STATUS_EVT not yet received, we don't
      * know the Connection Id. We need to wait for the GATT_CONNECTION_STATUS_EVT event. */
@@ -315,19 +319,32 @@ void le_slave_encryption_status_changed(wiced_bt_dev_encryption_status_t *p_stat
 /*
  * GATT operation started by the client has been completed
  */
-wiced_bt_gatt_status_t le_slave_gatt_operation_complete(wiced_bt_gatt_operation_complete_t *p_data)
+wiced_bt_gatt_status_t le_peripheral_gatt_operation_complete(wiced_bt_gatt_operation_complete_t *p_data)
 {
     switch (p_data->op)
     {
+#if BTSTACK_VER > 0x01020000
+    case GATTC_OPTYPE_READ_HANDLE:
+#else
     case GATTC_OPTYPE_READ:
+#endif
         watch_process_read_rsp(p_data);
         break;
 
+#if BTSTACK_VER > 0x01020000
+    case GATTC_OPTYPE_WRITE_WITH_RSP:
+    case GATTC_OPTYPE_WRITE_NO_RSP:
+#else
     case GATTC_OPTYPE_WRITE:
+#endif
         watch_process_write_rsp(p_data);
         break;
 
+#if BTSTACK_VER > 0x01020000
+    case GATTC_OPTYPE_CONFIG_MTU:
+#else
     case GATTC_OPTYPE_CONFIG:
+#endif
         WICED_BT_TRACE("peer mtu:%d\n", p_data->response_data.mtu);
         break;
 
@@ -345,7 +362,7 @@ wiced_bt_gatt_status_t le_slave_gatt_operation_complete(wiced_bt_gatt_operation_
 /*
  * Process discovery results from the stack
  */
-wiced_bt_gatt_status_t le_slave_gatt_discovery_result(wiced_bt_gatt_discovery_result_t *p_data)
+wiced_bt_gatt_status_t le_peripheral_gatt_discovery_result(wiced_bt_gatt_discovery_result_t *p_data)
 {
     WICED_BT_TRACE("[%s] conn %d type %d state 0x%02x\n", __FUNCTION__, p_data->conn_id, p_data->discovery_type, watch_app_state.init_state);
 
@@ -392,11 +409,16 @@ wiced_bt_gatt_status_t le_slave_gatt_discovery_result(wiced_bt_gatt_discovery_re
 /*
  * Process discovery complete from the stack
  */
-wiced_bt_gatt_status_t le_slave_gatt_discovery_complete(wiced_bt_gatt_discovery_complete_t *p_data)
+wiced_bt_gatt_status_t le_peripheral_gatt_discovery_complete(wiced_bt_gatt_discovery_complete_t *p_data)
 {
     wiced_result_t result;
+#if BTSTACK_VER > 0x01020000
+    wiced_bt_gatt_discovery_type_t discovery_type = p_data->discovery_type;
+#else
+    wiced_bt_gatt_discovery_type_t discovery_type = p_data->disc_type;
+#endif
 
-    WICED_BT_TRACE("[%s] conn %d type %d state %d\n", __FUNCTION__, p_data->conn_id, p_data->disc_type, watch_app_state.init_state);
+    WICED_BT_TRACE("[%s] conn %d type %d state %d\n", __FUNCTION__, p_data->conn_id, discovery_type, watch_app_state.init_state);
 
     switch (watch_app_state.init_state)
     {
@@ -407,7 +429,7 @@ wiced_bt_gatt_status_t le_slave_gatt_discovery_complete(wiced_bt_gatt_discovery_
         wiced_bt_ams_client_discovery_complete(p_data);
         break;
     default:
-        if (p_data->disc_type == GATT_DISCOVER_SERVICES_ALL)
+        if (discovery_type == GATT_DISCOVER_SERVICES_ALL)
         {
             WICED_BT_TRACE("ANCS:%04x-%04x AMS:%04x-%04x\n",
                             watch_hostinfo.ancs_s_handle, watch_hostinfo.ancs_e_handle,
@@ -436,7 +458,7 @@ wiced_bt_gatt_status_t le_slave_gatt_discovery_complete(wiced_bt_gatt_discovery_
                 }
                 else
                 {
-                    WICED_BT_TRACE( "LE Slave Link encrypted. Let's start LE Services config\n");
+                    WICED_BT_TRACE( "LE Peripheral Link encrypted. Let's start LE Services config\n");
                     /* Link is encrypted => Start Service configuration */
                     watch_app_state.init_state = WATCH_INIT_STATE_NONE;
                     watch_init_next_client();
@@ -445,7 +467,7 @@ wiced_bt_gatt_status_t le_slave_gatt_discovery_complete(wiced_bt_gatt_discovery_
         }
         else
         {
-            WICED_BT_TRACE("!!!! invalid op:%d\n", p_data->disc_type);
+            WICED_BT_TRACE("!!!! invalid op:%d\n", discovery_type);
         }
     }
     return WICED_BT_GATT_SUCCESS;
@@ -529,7 +551,7 @@ void watch_indication_handler(wiced_bt_gatt_operation_complete_t *p_data)
     }
 }
 
-static void le_slave_ams_client_event_handler_notification(wiced_bt_ams_client_notification_id_t opcode, uint16_t data_len, uint8_t *p_data)
+static void le_peripheral_ams_client_event_handler_notification(wiced_bt_ams_client_notification_id_t opcode, uint16_t data_len, uint8_t *p_data)
 {
     uint8_t event_data[60];
     uint16_t event_code;
@@ -580,7 +602,7 @@ static void le_slave_ams_client_event_handler_notification(wiced_bt_ams_client_n
     wiced_transport_send_data(event_code, event_data, data_len + i);
 }
 
-static void le_slave_ams_client_event_handler(wiced_bt_ams_client_event_t event, wiced_bt_ams_client_event_data_t *p_event_data)
+static void le_peripheral_ams_client_event_handler(wiced_bt_ams_client_event_t event, wiced_bt_ams_client_event_data_t *p_event_data)
 {
     switch (event)
     {
@@ -589,7 +611,7 @@ static void le_slave_ams_client_event_handler(wiced_bt_ams_client_event_t event,
         break;
 
     case WICED_BT_AMS_CLIENT_EVENT_NOTIFICATION:
-        le_slave_ams_client_event_handler_notification(p_event_data->notification.opcode, p_event_data->notification.data_len, p_event_data->notification.p_data);
+        le_peripheral_ams_client_event_handler_notification(p_event_data->notification.opcode, p_event_data->notification.data_len, p_event_data->notification.p_data);
         break;
 
     default:
@@ -621,7 +643,7 @@ void watch_init_next_client(void)
         ams_client_config.conn_id           = watch_app_state.conn_id;
         ams_client_config.s_handle          = watch_hostinfo.ams_s_handle;
         ams_client_config.e_handle          = watch_hostinfo.ams_e_handle;
-        ams_client_config.p_event_handler   = &le_slave_ams_client_event_handler;
+        ams_client_config.p_event_handler   = &le_peripheral_ams_client_event_handler;
 
         if (wiced_bt_ams_client_initialize(&ams_client_config))
             break;
@@ -650,15 +672,27 @@ void watch_util_send_discover(uint16_t conn_id, wiced_bt_gatt_discovery_type_t t
     param.s_handle = s_handle;
     param.e_handle = e_handle;
 
+#if BTSTACK_VER > 0x01020000
+    status = wiced_bt_gatt_client_send_discover(conn_id, type, &param);
+
+    WICED_BT_TRACE("wiced_bt_gatt_client_send_discover %d\n", status);
+#else
     status = wiced_bt_gatt_send_discover(conn_id, type, &param);
 
     WICED_BT_TRACE("wiced_bt_gatt_send_discover %d\n", status);
+#endif
 }
 
 void watch_util_send_read_by_handle(uint16_t conn_id, uint16_t handle)
 {
-    wiced_bt_gatt_read_param_t param;
     wiced_bt_gatt_status_t     status;
+#if BTSTACK_VER > 0x01020000
+    status = wiced_bt_gatt_client_send_read_handle(conn_id, handle, 0,
+            NULL, 0, GATT_AUTH_REQ_NONE);
+
+    WICED_BT_TRACE("wiced_bt_gatt_client_send_read_handle %d\n", status);
+#else /* !BTSTACK_VER */
+    wiced_bt_gatt_read_param_t param;
 
     memset(&param, 0, sizeof(param));
     param.by_handle.handle = handle;
@@ -666,12 +700,25 @@ void watch_util_send_read_by_handle(uint16_t conn_id, uint16_t handle)
     status = wiced_bt_gatt_send_read(conn_id, GATT_READ_BY_HANDLE, &param);
 
     WICED_BT_TRACE("wiced_bt_gatt_send_read %d\n", status);
+#endif /* BTSTACK_VER */
 }
 
 wiced_bool_t watch_util_send_read_by_type(uint16_t conn_id, uint16_t s_handle, uint16_t e_handle, uint16_t uuid)
 {
-    wiced_bt_gatt_read_param_t param;
     wiced_bt_gatt_status_t     status;
+#if BTSTACK_VER > 0x01020000
+    wiced_bt_uuid_t uuid_buf;
+
+    uuid_buf.len = 2;
+    uuid_buf.uu.uuid16 = uuid;
+
+    status = wiced_bt_gatt_client_send_read_by_type(conn_id, s_handle, e_handle,
+            &uuid_buf, NULL, 0, GATT_AUTH_REQ_NONE);
+
+    WICED_BT_TRACE("wiced_bt_gatt_client_send_read_by_type %d\n", status);
+    return (status != WICED_BT_GATT_SUCCESS);
+#else /* !BTSTACK_VER */
+    wiced_bt_gatt_read_param_t param;
 
     memset(&param, 0, sizeof(param));
     param.char_type.s_handle        = s_handle;
@@ -683,22 +730,23 @@ wiced_bool_t watch_util_send_read_by_type(uint16_t conn_id, uint16_t s_handle, u
 
     WICED_BT_TRACE("wiced_bt_gatt_send_read %d\n", status);
     return (status == WICED_BT_SUCCESS);
+#endif /* BTSTACK_VER */
 }
 
 /*
- * slave_timeout
+ * peripheral_timeout
  */
-void slave_timeout(uint32_t arg)
+void peripheral_timeout(uint32_t arg)
 {
     /* If Pairing is not allowed AND peer device not yet Paired */
     if ((hci_control_cb.pairing_allowed == WICED_FALSE) &&
         (hci_control_find_nvram_id(watch_app_state.remote_addr, BD_ADDR_LEN) == HCI_CONTROL_INVALID_NVRAM_ID))
     {
-        WICED_BT_TRACE("Slave timeout. Pairing not allowed and Device not Paired. Do nothing\n");
+        WICED_BT_TRACE("Peripheral timeout. Pairing not allowed and Device not Paired. Do nothing\n");
         return;
     }
 
-    WICED_BT_TRACE("Slave timeout. Starting Service Search\n");
+    WICED_BT_TRACE("Peripheral timeout. Starting Service Search\n");
 
 
     // perform primary service search
@@ -713,4 +761,4 @@ void slave_timeout(uint32_t arg)
             UUID_ATTRIBUTE_PRIMARY_SERVICE, 1, 0xffff);
 }
 
-#endif /* WICED_APP_LE_SLAVE_CLIENT_INCLUDED */
+#endif /* WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED */

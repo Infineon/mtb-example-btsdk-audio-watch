@@ -73,7 +73,7 @@ typedef struct
     uint16_t          conn_id;              // Connection ID used for exchange with the stack
     uint16_t          peer_mtu;             // MTU received in the MTU request (or 23 if peer did not send MTU request)
 
-    uint8_t           role;                 // HCI_ROLE_MASTER or HCI_ROLE_SLAVE
+    uint8_t           role;                 // HCI_ROLE_CENTRAL or HCI_ROLE_PERIPHERAL
 } hci_control_le_conn_state_t;
 
 typedef struct
@@ -84,7 +84,7 @@ typedef struct
 typedef struct t_hci_control_le_pending_tx_buffer_t
 {
     wiced_bool_t        tx_buf_saved;
-    uint16_t            tx_buf_conn_id;
+    uint16_t            tx_buf_conn_idx;
     uint16_t            tx_buf_type;
     uint16_t            tx_buf_len;
     uint16_t            tx_buf_handle;

@@ -37,19 +37,19 @@
  *
  */
 
+#ifdef WICED_APP_HFP_AG_INCLUDED
+
 #include "hci_control_api.h"
 #include "wiced_bt_trace.h"
 #include "hci_control_hfp_ag.h"
 #include "hci_control.h"
 
-#ifdef WICED_APP_HFP_AG_INCLUDED
-
 #include "wiced_bt_hfp_ag.h"
 
 #if (BTM_WBS_INCLUDED == TRUE )
-#define BT_AUDIO_HFP_SUPPORTED_FEATURES     (HFP_AG_FEAT_VREC | HFP_AG_FEAT_CODEC | HFP_AG_FEAT_ESCO)
+#define BT_AUDIO_HFP_SUPPORTED_FEATURES     (HFP_AG_FEAT_VREC | HFP_AG_FEAT_CODEC | HFP_AG_FEAT_ESCO | HFP_AG_FEAT_ECS)
 #else
-#define BT_AUDIO_HFP_SUPPORTED_FEATURES     (HFP_AG_FEAT_VREC | HFP_AG_FEAT_ESCO)
+#define BT_AUDIO_HFP_SUPPORTED_FEATURES     (HFP_AG_FEAT_VREC | HFP_AG_FEAT_ESCO | HFP_AG_FEAT_ECS)
 #endif
 
 /******************************************************
@@ -115,7 +115,13 @@ void hci_control_ag_handle_command( uint16_t opcode, uint8_t* p_data, uint32_t l
         handle = p[0] | ( p[1] << 8 );
         hfp_ag_audio_close( handle );
         break;
-
+    case HCI_CONTROL_AG_COMMAND_SET_CIND:
+        hfp_ag_set_cind((char *)&p[0], length);
+        break;
+    case HCI_CONTROL_AG_COMMAND_STR:
+        handle = p[0] | ( p[1] << 8 );
+        hfp_ag_send_cmd_str(handle, &p[2], length-2);
+        break;
     default:
         WICED_BT_TRACE ( "hci_control_ag_handle_command - unkn own opcode: %u %u\n", opcode);
         break;

@@ -112,12 +112,24 @@ void hci_control_misc_handle_get_version( void )
     tx_buf[cmd++] = 0; // not used
 
     /* Send MCU app the supported features */
+#ifdef WICED_APP_LE_INCLUDED
     tx_buf[cmd++] = HCI_CONTROL_GROUP_GATT;
+#endif
+#ifdef WICED_APP_AUDIO_SRC_INCLUDED
     tx_buf[cmd++] = HCI_CONTROL_GROUP_AUDIO;
+#endif
+#ifdef WICED_APP_ANCS_INCLUDED
     tx_buf[cmd++] = HCI_CONTROL_GROUP_ANCS;
+#endif
+#ifdef WICED_APP_AUDIO_RC_CT_INCLUDED
     tx_buf[cmd++] = HCI_CONTROL_GROUP_AVRC_CONTROLLER;
+#endif
+#ifdef WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
     tx_buf[cmd++] = HCI_CONTROL_GROUP_AMS;
+#endif
+#ifdef WICED_APP_AUDIO_RC_TG_INCLUDED
     tx_buf[cmd++] = HCI_CONTROL_GROUP_AVRC_TARGET;
+#endif
 #ifdef WICED_APP_HFP_AG_INCLUDED
     tx_buf[cmd++] = HCI_CONTROL_GROUP_AG;
 #endif

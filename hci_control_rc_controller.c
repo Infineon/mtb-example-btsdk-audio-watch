@@ -31,6 +31,8 @@
  * so agrees to indemnify Cypress against all liability.
  */
 
+#ifdef WICED_APP_AUDIO_RC_CT_INCLUDED
+
 /** @file
  *
  * This file implements audio application controlled over UART.
@@ -54,6 +56,7 @@
 
 #define MAX_POSSIBLE_APP_ATTR_SETTINGS  4
 #define MAX_POSSIBLE_APP_ATTR_VALUES    4
+#define GET_ELEMENT_ATTR_RSP_LEN(str_len)   (sizeof(uint16_t) + sizeof(uint8_t)  + sizeof(uint8_t)  + sizeof(uint16_t) + str_len) /* handle(2) + status(1) + type_id(1) + len(2)) */
 
 /******************************************************************************
  *                         Variable Definitions
@@ -154,7 +157,11 @@ wiced_result_t avrc_app_hci_pass_through (uint16_t handle, uint8_t op_id, uint8_
     if ( rc_app_cb.connection_state == REMOTE_CONTROL_CONNECTED )
     {
 #ifdef WICED_APP_AUDIO_RC_CT_INCLUDED
+#if BTSTACK_VER > 0x01020000
+        result = wiced_bt_avrc_ct_send_pass_through_cmd((uint8_t) handle, op_id, state, 0 );
+#else
         result = wiced_bt_avrc_ct_send_pass_through_cmd( handle, op_id, state, 0, NULL );
+#endif
 #endif
     }
 
@@ -174,8 +181,13 @@ wiced_result_t avrc_app_hci_pass_through (uint16_t handle, uint8_t op_id, uint8_
  */
 wiced_result_t avrcp_app_hci_set_player_settings (uint16_t handle, uint8_t attr_id )
 {
-    wiced_bt_avrc_player_app_param_t app_param;
     wiced_result_t result = WICED_NOT_CONNECTED;
+#if BTSTACK_VER > 0x01020000
+    wiced_bt_avrc_metadata_set_app_value_cmd_t app_param;
+    wiced_bt_avrc_app_setting_t app_setting;
+#else
+    wiced_bt_avrc_player_app_param_t app_param;
+#endif
 
     WICED_BT_TRACE( "%s: Enter: attr_id: %d \n", __FUNCTION__,  attr_id);
 
@@ -184,6 +196,20 @@ wiced_result_t avrcp_app_hci_set_player_settings (uint16_t handle, uint8_t attr_
     {
         /* Put the request into the appropriate structure for the api. We only send a single
          * attribute at a time from the  MCU */
+#if BTSTACK_VER > 0x01020000
+        app_setting.attr_id = attr_id;
+        app_param.num_val      = 1;
+        app_param.p_vals   = &app_setting;
+
+        rc_app_cb.app_setting[attr_id].current_index =
+                        (rc_app_cb.app_setting[attr_id].current_index + 1) %
+                         rc_app_cb.app_setting[attr_id].num_possible_values;
+
+        app_setting.attr_val =
+                  rc_app_cb.app_setting[attr_id].possible_values[rc_app_cb.app_setting[attr_id].current_index];
+
+        result = wiced_bt_avrc_ct_set_player_value_cmd((uint8_t) handle, &app_param );
+#else /* !BTSTACK_VER */
         app_param.num_attr      = 1;
         app_param.attr_id[0]    = attr_id;
 
@@ -195,6 +221,7 @@ wiced_result_t avrcp_app_hci_set_player_settings (uint16_t handle, uint8_t attr_
                   rc_app_cb.app_setting[attr_id].possible_values[rc_app_cb.app_setting[attr_id].current_index];
 
         result = wiced_bt_avrc_ct_set_player_value_cmd( handle, &app_param );
+#endif /* BTSTACK_VER */
     }
 
     return result;
@@ -246,25 +273,74 @@ wiced_result_t avrc_app_hci_connect ( uint8_t* p_data, uint32_t len )
  *
  * @return          wiced_result_t
  */
-wiced_result_t avrc_controller_app_hci_disconnect_connection ( uint16_t handle )
+wiced_result_t avrc_app_ct_hci_disconnect_connection ( uint16_t handle )
 {
     wiced_result_t result = WICED_NOT_CONNECTED;
 
     /* Make sure there is a connection before trying to send a command */
     if ( rc_app_cb.connection_state == REMOTE_CONTROL_CONNECTED )
     {
-        result = wiced_bt_avrc_ct_disconnect( handle );
+        result = wiced_bt_avrc_ct_disconnect((uint8_t) handle );
     }
 
     return result;
 }
+
+/**
+ *
+ * Function         avrc_app_ct_hci_send_unit_info_cmd
+ *
+ *                  Send MCU request for Unit Info command from a peer.
+ *
+ * @param[in]       handle     : connection handle passed from MCU.
+ *
+ *
+ * @return          wiced_result_t
+ */
+wiced_result_t avrc_app_ct_hci_send_unit_info_cmd(uint16_t handle)
+{
+    wiced_result_t result = WICED_NOT_CONNECTED;
+
+    /* Make sure there is a connection before trying to send a command */
+    if (rc_app_cb.connection_state == REMOTE_CONTROL_CONNECTED)
+    {
+        result = wiced_bt_avrc_ct_send_unit_info_cmd((uint8_t)handle);
+    }
+
+    return result;
+}
+
+/**
+ *
+ * Function         avrc_app_ct_hci_send_sub_unit_info_cmd
+ *
+ *                  Send MCU request for Sub Unit Info command from a peer.
+ *
+ * @param[in]       handle     : connection handle passed from MCU.
+ *
+ *
+ * @return          wiced_result_t
+ */
+wiced_result_t avrc_app_ct_hci_send_sub_unit_info_cmd(uint16_t handle)
+{
+    wiced_result_t result = WICED_NOT_CONNECTED;
+
+    /* Make sure there is a connection before trying to send a command */
+    if (rc_app_cb.connection_state == REMOTE_CONTROL_CONNECTED)
+    {
+        result = wiced_bt_avrc_ct_send_sub_unit_info_cmd((uint8_t)handle);
+    }
+
+    return result;
+}
+
 
 wiced_result_t avrcp_app_hci_get_attrs_cmd(uint8_t* p_data, uint32_t len)
 {
     wiced_result_t result = WICED_ERROR;
     uint16_t handle = p_data[0] | (p_data[1] << 8);
 
-    result = wiced_bt_avrc_ct_get_element_attr_cmd(handle, 0, p_data[2], &p_data[3]);
+    result = wiced_bt_avrc_ct_get_element_attr_cmd((uint8_t)handle, 0, p_data[2], &p_data[3]);
 
     return result;
 }
@@ -322,6 +398,8 @@ void avrc_connection_state_cback( uint8_t handle,  wiced_bt_device_address_t rem
         /* Find out what app controls the player has to offer. */
         wiced_bt_avrc_ct_list_player_attrs_cmd( handle );
 #endif
+        break;
+    default:
         break;
     }
 }
@@ -386,14 +464,23 @@ static int avrc_event_id_to_hci_event[] =
  *
  * @return          Nothing
  */
+#if BTSTACK_VER > 0x01020000
+void avrc_handle_registered_notification_rsp(uint8_t handle,
+                                             wiced_bt_avrc_rsp_t *avrc_rsp)
+#else
 void avrc_handle_registered_notification_rsp(uint8_t handle,
                                              wiced_bt_avrc_response_t *avrc_rsp)
+#endif
 {
     wiced_result_t status = WICED_ERROR;
     uint8_t        event_data[MAX_REG_EVENT_SIZE] = {0};
     uint16_t       event_data_size = sizeof(uint16_t);
 
+#if BTSTACK_VER > 0x01020000
+    wiced_bt_avrc_metadata_reg_notif_rsp_t *reg_notif = &avrc_rsp->type.metadata.u.reg_notif;
+#else
     wiced_bt_avrc_reg_notif_rsp_t *reg_notif = (wiced_bt_avrc_reg_notif_rsp_t *)avrc_rsp;
+#endif
 
     WICED_BT_TRACE( "[%s]: handle: <%d> Notification Event: 0x%x\n", __FUNCTION__,
             handle, reg_notif->event_id);
@@ -430,11 +517,19 @@ void avrc_handle_registered_notification_rsp(uint8_t handle,
 
         event_data[event_data_size++] = reg_notif->param.player_setting.num_attr;
 
+#if BTSTACK_VER > 0x01020000
+        for (i = 0; i < reg_notif->param.player_setting.num_attr && reg_notif->param.player_setting.p_attrs; i = i+2)
+        {
+            event_data[event_data_size++] = reg_notif->param.player_setting.p_attrs[i];
+            event_data[event_data_size++] = reg_notif->param.player_setting.p_attrs[i+1];
+        }
+#else
         for (i = 0; i < reg_notif->param.player_setting.num_attr; i++)
         {
             event_data[event_data_size++] = reg_notif->param.player_setting.attr_id[i];
             event_data[event_data_size++] = reg_notif->param.player_setting.attr_value[i];
         }
+#endif
 
         status = WICED_SUCCESS;
     }
@@ -466,13 +561,63 @@ void avrc_handle_registered_notification_rsp(uint8_t handle,
  *
  * @return          Nothing
  */
+#if BTSTACK_VER > 0x01020000
+void avrc_handle_element_attribute_rsp(uint8_t handle,
+                                       wiced_bt_avrc_rsp_t *avrc_rsp)
+#else
 void avrc_handle_element_attribute_rsp(uint8_t handle,
                                        wiced_bt_avrc_response_t *avrc_rsp)
+#endif
 {
     int i;
     int rsp_size;
     uint8_t *rsp;
 
+#if BTSTACK_VER > 0x01020000
+    wiced_bt_avrc_metadata_get_element_attrs_rsp_t *elem_attrs_rsp = &avrc_rsp->type.metadata.u.get_elem_attrs;
+    wiced_bt_avrc_attr_entry_t attr_entry;
+    /* If successful, make room for the response. */
+    /* Determine the number of bytes necessary to transport each element separately to MCU */
+    for ( i = 0; i < elem_attrs_rsp->num_attr; i++ )
+    {
+        wiced_bt_avrc_parse_get_element_attr_rsp_from_stream(elem_attrs_rsp->p_attr_stream, elem_attrs_rsp->length, &attr_entry);
+
+        rsp_size = GET_ELEMENT_ATTR_RSP_LEN( attr_entry.name.name.str_len);
+
+        /* Make sure that there is enough room in the allocated buffer for the result */
+        if ( rsp_size <= WICED_BUFF_MAX_SIZE )
+        {
+            WICED_BT_TRACE( "[%s]: rsp_size: %d attr: %d, strlen: %d\n", __FUNCTION__,
+                            rsp_size,
+                            attr_entry.attr_id,
+                            attr_entry.name.name.str_len);
+            rsp = (uint8_t *)wiced_bt_get_buffer( rsp_size );
+            if (rsp != NULL)
+            {
+                /* Playing Time attribute is an ASCII string containing milli-sec */
+                /* We need to check case where a duration of 0 is received */
+                if ((attr_entry.attr_id == AVRC_MEDIA_ATTR_ID_PLAYING_TIME) &&
+                    (attr_entry.name.name.str_len >= 3))
+                {
+                    /* Convert from milli-sec to sec (by ignoring the last 3 digits) */
+                    attr_entry.name.name.str_len -= 3;
+                    rsp_size -= 3;
+                }
+                rsp[0] = handle;
+                rsp[1] = 0;
+                rsp[2] = WICED_SUCCESS; //avrc_status_to_wiced_result(avrc_rsp->rsp.status);
+                rsp[3] = ( uint8_t ) attr_entry.attr_id;
+                rsp[4] = attr_entry.name.name.str_len & 0xff;
+                rsp[5] = ( attr_entry.name.name.str_len >> 8) & 0xff;
+                memcpy( &rsp[6], attr_entry.name.name.p_str, attr_entry.name.name.str_len );
+
+                hci_control_send_avrc_event( HCI_CONTROL_AVRC_CONTROLLER_EVENT_CURRENT_TRACK_INFO, rsp, (uint16_t)rsp_size );
+                wiced_bt_free_buffer(rsp);
+            }
+        }
+    }
+
+#else /* !BTSTACK_VER */
     wiced_bt_avrc_get_elem_attrs_rsp_t *elem_attrs_rsp = &avrc_rsp->get_elem_attrs;
 
     /* If successful, make room for the response. */
@@ -520,6 +665,8 @@ void avrc_handle_element_attribute_rsp(uint8_t handle,
             }
         }
     }
+
+#endif /* BTSTACK_VER */
 }
 
 /**
@@ -582,27 +729,43 @@ void avrc_send_app_setting_info(uint8_t handle)
  *
  * @return          Nothing
  */
+#if BTSTACK_VER > 0x01020000
+void avrc_handle_list_player_app_attribute_rsp(uint8_t handle,
+                                               wiced_bt_avrc_rsp_t *avrc_rsp)
+#else
 void avrc_handle_list_player_app_attribute_rsp(uint8_t handle,
                                                wiced_bt_avrc_response_t *avrc_rsp)
+#endif
 {
-    wiced_bt_avrc_list_app_attr_rsp_t *list_app_attr = &avrc_rsp->list_app_attr;
     uint8_t         i;
     wiced_result_t  result;
+    uint8_t         pdu;
+    uint8_t         *p_attrs;
 
-    WICED_BT_TRACE( "[%s]: handle: <%d> PDU: 0x%x\n", __FUNCTION__,  handle, avrc_rsp->pdu);
+#if BTSTACK_VER > 0x01020000
+    wiced_bt_avrc_metadata_list_app_attr_rsp_t *list_app_attr = &avrc_rsp->type.metadata.u.list_app_attr;
+    pdu = avrc_rsp->type.metadata.metadata_hdr.pdu;
+    p_attrs = list_app_attr->p_attrs;
+#else
+    wiced_bt_avrc_list_app_attr_rsp_t *list_app_attr = &avrc_rsp->list_app_attr;
+    pdu = avrc_rsp->pdu;
+    p_attrs = list_app_attr->attrs;
+#endif
+
+    WICED_BT_TRACE( "[%s]: handle: <%d> PDU: 0x%x\n", __FUNCTION__,  handle, pdu);
 
     rc_app_cb.num_app_settings = rc_app_cb.num_app_settings_init = 0;
     if (list_app_attr->num_attr <= MAX_POSSIBLE_APP_ATTR_SETTINGS)
     {
         for (i = 0; i < list_app_attr->num_attr; i++)
         {
-            WICED_BT_TRACE( "[%s]: attribute[%d]: %d\n", __FUNCTION__, i, list_app_attr->attrs[i] );
+            WICED_BT_TRACE( "[%s]: attribute[%d]: %d\n", __FUNCTION__, i, p_attrs[i] );
 
-            if (list_app_attr->attrs[i] <= MAX_POSSIBLE_APP_ATTR_SETTINGS)
+            if (p_attrs[i] <= MAX_POSSIBLE_APP_ATTR_SETTINGS)
             {
                 /* Cache the available settings and count them. this is necessary to determine
                  * when all possible value requests are completed */
-                rc_app_cb.app_setting[list_app_attr->attrs[i]].available = WICED_TRUE;
+                rc_app_cb.app_setting[p_attrs[i]].available = WICED_TRUE;
                 rc_app_cb.num_app_settings++;
             }
         }
@@ -612,7 +775,7 @@ void avrc_handle_list_player_app_attribute_rsp(uint8_t handle,
         {
             WICED_BT_TRACE( "[%s]: sending request for poss settings.\n", __FUNCTION__ );
             result = wiced_bt_avrc_ct_list_player_values_cmd(
-                        handle, list_app_attr->attrs[i] );
+                        handle, p_attrs[i] );
             if ( result != WICED_SUCCESS )
             {
                 break;
@@ -633,14 +796,28 @@ void avrc_handle_list_player_app_attribute_rsp(uint8_t handle,
  *
  * @return          Nothing
  */
+#if BTSTACK_VER > 0x01020000
+void avrc_handle_list_player_app_values_rsp(uint8_t handle,
+                                           wiced_bt_avrc_rsp_t *avrc_rsp)
+#else
 void avrc_handle_list_player_app_values_rsp(uint8_t handle,
                                            wiced_bt_avrc_response_t *avrc_rsp)
+#endif
 {
+#if BTSTACK_VER > 0x01020000
+    wiced_bt_avrc_metadata_list_app_values_rsp_t *list_app_values = &avrc_rsp->type.metadata.u.list_app_values;
+    uint8_t         attr_id = avrc_rsp->hdr.opcode;
+    uint8_t         pdu = avrc_rsp->type.metadata.metadata_hdr.pdu;
+    uint8_t         *p_vals = list_app_values->p_vals;
+#else
     wiced_bt_avrc_list_app_values_rsp_t *list_app_values = &avrc_rsp->list_app_values;
     uint8_t         attr_id = list_app_values->opcode;
+    uint8_t         pdu = avrc_rsp->pdu;
+    uint8_t         *p_vals = list_app_values->vals;
+#endif
     int             i;
 
-    WICED_BT_TRACE( "[%s]: handle: <%d> PDU: 0x%x\n", __FUNCTION__,  handle, avrc_rsp->pdu );
+    WICED_BT_TRACE( "[%s]: handle: <%d> PDU: 0x%x\n", __FUNCTION__,  handle, pdu );
 
     rc_app_cb.num_app_settings_init++;
 
@@ -648,7 +825,7 @@ void avrc_handle_list_player_app_values_rsp(uint8_t handle,
     rc_app_cb.app_setting[attr_id].num_possible_values = list_app_values->num_val;
     for ( i = 0; i < list_app_values->num_val; i++ )
     {
-        rc_app_cb.app_setting[attr_id].possible_values[i] = list_app_values->vals[i];
+        rc_app_cb.app_setting[attr_id].possible_values[i] = p_vals[i];
     }
 
     /* Check if all app possible setting requests have completed */
@@ -671,18 +848,35 @@ void avrc_handle_list_player_app_values_rsp(uint8_t handle,
  *
  * @return          Nothing
  */
+#if BTSTACK_VER > 0x01020000
+void avrc_handle_get_player_app_value_rsp(uint8_t handle,
+                                           wiced_bt_avrc_rsp_t *avrc_rsp)
+#else
 void avrc_handle_get_player_app_value_rsp(uint8_t handle,
                                            wiced_bt_avrc_response_t *avrc_rsp)
+#endif
 {
+#if BTSTACK_VER > 0x01020000
+    wiced_bt_avrc_metadata_get_cur_app_value_rsp_t *get_cur_app_val = &avrc_rsp->type.metadata.u.get_cur_app_val;
+    uint8_t pdu = avrc_rsp->type.metadata.metadata_hdr.pdu;
+    uint8_t idx = 0;
+#else
     wiced_bt_avrc_get_cur_app_value_rsp_t *get_cur_app_val = &avrc_rsp->get_cur_app_val;
+    uint8_t pdu = avrc_rsp->pdu;
+#endif
 
-    WICED_BT_TRACE( "[%s]: handle: <%d> PDU: 0x%x\n", __FUNCTION__,  handle, avrc_rsp->pdu);
+    WICED_BT_TRACE( "[%s]: handle: <%d> PDU: 0x%x\n", __FUNCTION__,  handle, pdu);
 
     /* We only asked for one attribute setting. */
     if (get_cur_app_val->num_val == 1)
     {
+#if BTSTACK_VER > 0x01020000
+        uint8_t attr_id  = get_cur_app_val->p_vals[idx++];
+        uint8_t attr_val = get_cur_app_val->p_vals[idx++];
+#else
         uint8_t attr_id  = get_cur_app_val->p_vals->attr_id;
         uint8_t attr_val = get_cur_app_val->p_vals->attr_val;
+#endif
         int i;
 
         /* Make sure the value is in the set of the list of possibilities */
@@ -720,14 +914,27 @@ void avrc_handle_get_player_app_value_rsp(uint8_t handle,
  *
  * @return          Nothing
  */
+#if BTSTACK_VER > 0x01020000
+void avrc_response_cback(  uint8_t handle,
+                          wiced_bt_avrc_rsp_t *avrc_rsp)
+#else
 void avrc_response_cback(  uint8_t handle,
                           wiced_bt_avrc_response_t *avrc_rsp)
+#endif
 {
-    WICED_BT_TRACE( "[%s]: handle: <%d> PDU: 0x%x\n", __FUNCTION__, handle, avrc_rsp->pdu);
+    uint8_t pdu;
+
+#if BTSTACK_VER > 0x01020000
+    pdu = avrc_rsp->type.metadata.metadata_hdr.pdu;
+#else
+    pdu = avrc_rsp->pdu;
+#endif
+
+    WICED_BT_TRACE( "[%s]: handle: <%d> PDU: 0x%x\n", __FUNCTION__, handle, pdu);
 
     /* Check the status. If successful handle the response */
 
-    switch ( avrc_rsp->pdu )
+    switch ( pdu )
     {
     case AVRC_PDU_REGISTER_NOTIFICATION:
         avrc_handle_registered_notification_rsp( handle, avrc_rsp );
@@ -750,7 +957,7 @@ void avrc_response_cback(  uint8_t handle,
         break;
 
     default:
-        WICED_BT_TRACE( "[%s]: unhandled response: PDU: 0x%x\n", __FUNCTION__, avrc_rsp->pdu);
+        WICED_BT_TRACE( "[%s]: unhandled response: PDU: 0x%x\n", __FUNCTION__, pdu);
         break;
     }
 }
@@ -770,11 +977,19 @@ void avrc_response_cback(  uint8_t handle,
  *
  * @return          Nothing
  */
+#if BTSTACK_VER > 0x01020000
+void avrc_command_cback( uint8_t handle,
+                         wiced_bt_avrc_metadata_cmd_t *avrc_cmd)
+{
+    WICED_BT_TRACE( "%s: Unsupported command callback PDU: 0x%x\n", __FUNCTION__,  avrc_cmd->metadata_hdr.pdu);
+}
+#else /* !BTSTACK_VER */
 void avrc_command_cback( uint8_t handle,
                          wiced_bt_avrc_command_t *avrc_cmd)
 {
     WICED_BT_TRACE( "%s: Unsupported command callback PDU: 0x%x\n", __FUNCTION__,  avrc_cmd->pdu);
 }
+#endif /* BTSTACK_VER */
 
 /**
  *
@@ -790,21 +1005,33 @@ void avrc_command_cback( uint8_t handle,
  *
  * @return          Nothing
  */
+#if BTSTACK_VER > 0x01020000
+void avrc_passthrough_cback(uint8_t handle,
+        wiced_bt_avrc_ctype_t ctype,
+        wiced_bt_avrc_pass_thru_hdr_t *avrc_pass_rsp)
+#else
 void avrc_passthrough_cback(uint8_t handle,
                              wiced_bt_avrc_msg_pass_t *avrc_pass_rsp )
+#endif
 {
-    WICED_BT_TRACE( "[%s]: handle: <%d> op_id: 0x%x\n", __FUNCTION__,  handle, avrc_pass_rsp->op_id );
+#if BTSTACK_VER > 0x01020000
+    uint8_t operation_id = avrc_pass_rsp->operation_id;
+#else
+    uint8_t operation_id = avrc_pass_rsp->op_id;;
+    uint8_t ctype = avrc_pass_rsp->hdr.ctype;
+#endif
+    WICED_BT_TRACE( "[%s]: handle: <%d> op_id: 0x%x\n", __FUNCTION__,  handle, operation_id );
 
-    if ( avrc_pass_rsp->hdr.ctype == AVRC_RSP_ACCEPT )
+    if ( ctype == AVRC_RSP_ACCEPT )
     {
         /* Assume that if the state of the keypress is "press" they will want to "release" */
         if ( avrc_pass_rsp->state == AVRC_STATE_PRESS )
         {
             /* Exceptions for FFWD and REW */
-            if ((avrc_pass_rsp->op_id != AVRC_ID_FAST_FOR) &&
-                (avrc_pass_rsp->op_id != AVRC_ID_REWIND))
+            if ((operation_id != AVRC_ID_FAST_FOR) &&
+                (operation_id != AVRC_ID_REWIND))
             {
-                const wiced_result_t result = avrc_app_hci_pass_through(handle, avrc_pass_rsp->op_id, AVRC_STATE_RELEASE);
+                const wiced_result_t result = avrc_app_hci_pass_through(handle, operation_id, AVRC_STATE_RELEASE);
                 if (result != WICED_SUCCESS)
                 {
                     WICED_BT_TRACE("ERROR send_pass_through_cmd 0x%02x\n", result);
@@ -815,7 +1042,7 @@ void avrc_passthrough_cback(uint8_t handle,
     else
     {
         WICED_BT_TRACE( "%s: op_id: 0x%x failed: 0x%x\n", __FUNCTION__,
-                        avrc_pass_rsp->op_id, avrc_pass_rsp->hdr.ctype );
+                        operation_id, ctype );
     }
 
     /* It is currently assumed that the MCU does not care about the results of this request.
@@ -872,7 +1099,15 @@ uint8_t hci_control_avrc_handle_ctrlr_command( uint16_t cmd_opcode, uint8_t *p_d
         break;
 
     case HCI_CONTROL_AVRC_CONTROLLER_COMMAND_DISCONNECT:                   /* Disconnect a connection to the peer. */
-        status = avrc_controller_app_hci_disconnect_connection( handle ) == WICED_SUCCESS ? HCI_CONTROL_STATUS_SUCCESS : HCI_CONTROL_STATUS_FAILED;
+        status = avrc_app_ct_hci_disconnect_connection( handle ) == WICED_SUCCESS ? HCI_CONTROL_STATUS_SUCCESS : HCI_CONTROL_STATUS_FAILED;
+        break;
+
+    case HCI_CONTROL_AVRC_CONTROLLER_COMMAND_UNIT_INFO:
+        status = avrc_app_ct_hci_send_unit_info_cmd(handle) == WICED_SUCCESS ? HCI_CONTROL_STATUS_SUCCESS : HCI_CONTROL_STATUS_FAILED;
+        break;
+
+    case HCI_CONTROL_AVRC_CONTROLLER_COMMAND_SUB_UNIT_INFO:
+        status = avrc_app_ct_hci_send_sub_unit_info_cmd(handle) == WICED_SUCCESS ? HCI_CONTROL_STATUS_SUCCESS : HCI_CONTROL_STATUS_FAILED;
         break;
 
     case HCI_CONTROL_AVRC_CONTROLLER_COMMAND_PLAY:                         /* Passthrough Play Command */
@@ -960,3 +1195,4 @@ wiced_result_t hci_control_rc_controller_send_pass_through_cmd(uint8_t op_id, ui
 {
     return avrc_app_hci_pass_through(rc_app_cb.handle, op_id, state);
 }
+#endif /* WICED_APP_AUDIO_RC_CT_INCLUDED */
