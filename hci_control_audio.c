@@ -921,7 +921,6 @@ static void av_app_connect_event_hdlr(uint8_t handle, BD_ADDR bd_addr)
     WICED_BT_TRACE( "[%s]: Handle: 0x%04x", __FUNCTION__, handle);
 
     av_app_cb.state = AV_STATE_CONNECTED;
-
     /* Restore default connection parameters as they may have been reset by previous connection. */
     av_app_cb.audio_sf      = DEFAULT_SAMPLE_FREQUENCY;
     av_app_cb.audio_chcfg   = DEFAULT_CHANNEL_CONFIG;
@@ -2410,25 +2409,24 @@ void av_app_init( void )
 {
     //mia_enableLhlInterrupt( 0 ); //Todo wiced check. Remove this if not needed.
 
-    /* audio route UART by default */
-    av_app_cb.audio_route   = AUDIO_ROUTE_UART;
-
-    /* Store the current default so we can compare on disconnect */
-    av_app_cb.audio_sf      = DEFAULT_SAMPLE_FREQUENCY;
-    av_app_cb.audio_chcfg   = DEFAULT_CHANNEL_CONFIG;
-
-    av_app_cb.audio_stream_state = AV_STREAM_STATE_STOPPED;
-    av_app_cb.is_host_streaming  = WICED_FALSE;
-
     hci_control_audio_init();
 
     /* Application control block memory init*/
     if ( av_app_memInit( ) )
     {
-        hci_control_audio_init();
         avdt_init( );
         av_app_start( ); /* start the application */
     }
+
+    /* audio route UART by default */
+    av_app_cb.audio_route = AUDIO_ROUTE_UART;
+
+    /* Store the current default so we can compare on disconnect */
+    av_app_cb.audio_sf = DEFAULT_SAMPLE_FREQUENCY;
+    av_app_cb.audio_chcfg = DEFAULT_CHANNEL_CONFIG;
+
+    av_app_cb.audio_stream_state = AV_STREAM_STATE_STOPPED;
+    av_app_cb.is_host_streaming = WICED_FALSE;
 
     WICED_BT_TRACE ("[%s] exit\n", __FUNCTION__ );
 }
