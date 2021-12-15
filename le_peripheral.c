@@ -86,16 +86,13 @@
 #ifdef WICED_APP_ANCS_INCLUDED
 #include "wiced_bt_ancs.h"
 #endif
-#ifdef WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
+#ifdef WICED_APP_AMS_INCLUDED
 #include "wiced_bt_ams.h"
 #endif
 #include "hci_control.h"
 #include "string.h"
 #include "wiced_memory.h"
 #include "wiced_transport.h"
-
-#ifdef WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
-
 
 /******************************************************
  *                     Structures
@@ -150,7 +147,7 @@ watch_app_state_t watch_app_state;
 /******************************************************
  *               Function Definitions
  ******************************************************/
-
+#ifdef WICED_APP_ANCS_INCLUDED
 static void le_peripheral_ancs_client_event_handler_notification(wiced_bt_ancs_client_notification_data_t *p_data)
 {
     // Allocating a buffer to send the trace
@@ -209,22 +206,23 @@ static void le_peripheral_ancs_client_event_handler(wiced_bt_ancs_client_event_t
     }
 }
 
+#endif
+
 /*
  * This function is executed in the BTM_ENABLED_EVT management callback.
  */
 void le_peripheral_app_init(void)
 {
+#ifdef WICED_APP_ANCS_INCLUDED
     wiced_bt_ancs_client_config_t ancs_client_config = {0};
+#endif
 
     memset(&watch_hostinfo, 0, sizeof(watch_hostinfo));
     memset(&watch_app_state, 0, sizeof(watch_app_state));
 
-    if (wiced_init_timer(&watch_app_state.timer, peripheral_timeout, 0,
-            WICED_SECONDS_TIMER ) != WICED_SUCCESS)
-    {
-        WICED_BT_TRACE("Err: wiced_init_timer le_peripheral failed\n");
-    }
+    wiced_init_timer(&watch_app_state.timer, peripheral_timeout, 0, WICED_SECONDS_TIMER );
 
+#ifdef WICED_APP_ANCS_INCLUDED
     /* Initialize the ANCS client. */
     ancs_client_config.p_event_handler = &le_peripheral_ancs_client_event_handler;
 
@@ -232,6 +230,7 @@ void le_peripheral_app_init(void)
     {
         WICED_BT_TRACE("Err: wiced_bt_ancs_client_initialize failed\n");
     }
+#endif
 }
 
 /*
@@ -246,9 +245,12 @@ void le_peripheral_connection_up(wiced_bt_gatt_connection_status_t *p_conn_statu
     watch_app_state.addr_type = p_conn_status->addr_type;
     watch_app_state.transport = p_conn_status->transport;
 
+#ifdef WICED_APP_ANCS_INCLUDED
     wiced_bt_ancs_client_connection_up(p_conn_status);
-
+#endif
+#ifdef WICED_APP_AMS_INCLUDED
     wiced_bt_ams_client_connection_up(p_conn_status);
+#endif
 
     /* Connected as Peripheral. Start discovery in couple of seconds to give time to the peer device
      * to find/configure our services */
@@ -264,9 +266,12 @@ void le_peripheral_connection_down(wiced_bt_gatt_connection_status_t *p_conn_sta
 
     wiced_stop_timer(&watch_app_state.timer);
 
+#ifdef WICED_APP_ANCS_INCLUDED
     wiced_bt_ancs_client_connection_down(p_conn_status);
-
+#endif
+#ifdef WICED_APP_AMS_INCLUDED
     wiced_bt_ams_client_connection_down(p_conn_status);
+#endif
 }
 
 
@@ -305,6 +310,8 @@ void le_peripheral_encryption_status_changed(wiced_bt_dev_encryption_status_t *p
         return;
     }
 
+
+#if (defined (WICED_APP_ANCS_INCLUDED) || defined (WICED_APP_AMS_INCLUDED))
     /* If at ANCS or AMS Service already found */
     if ((watch_hostinfo.ancs_s_handle && watch_hostinfo.ancs_e_handle) ||
         (watch_hostinfo.ams_s_handle && watch_hostinfo.ams_e_handle))
@@ -313,6 +320,7 @@ void le_peripheral_encryption_status_changed(wiced_bt_dev_encryption_status_t *p
         watch_app_state.init_state = WATCH_INIT_STATE_NONE;
         watch_init_next_client();
     }
+#endif
 }
 
 
@@ -323,7 +331,7 @@ wiced_bt_gatt_status_t le_peripheral_gatt_operation_complete(wiced_bt_gatt_opera
 {
     switch (p_data->op)
     {
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     case GATTC_OPTYPE_READ_HANDLE:
 #else
     case GATTC_OPTYPE_READ:
@@ -331,7 +339,7 @@ wiced_bt_gatt_status_t le_peripheral_gatt_operation_complete(wiced_bt_gatt_opera
         watch_process_read_rsp(p_data);
         break;
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     case GATTC_OPTYPE_WRITE_WITH_RSP:
     case GATTC_OPTYPE_WRITE_NO_RSP:
 #else
@@ -340,7 +348,7 @@ wiced_bt_gatt_status_t le_peripheral_gatt_operation_complete(wiced_bt_gatt_opera
         watch_process_write_rsp(p_data);
         break;
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     case GATTC_OPTYPE_CONFIG_MTU:
 #else
     case GATTC_OPTYPE_CONFIG:
@@ -368,18 +376,23 @@ wiced_bt_gatt_status_t le_peripheral_gatt_discovery_result(wiced_bt_gatt_discove
 
     switch (watch_app_state.init_state)
     {
+#ifdef WICED_APP_ANCS_INCLUDED
     case WATCH_INIT_STATE_ANCS:
         wiced_bt_ancs_client_discovery_result(p_data);
         break;
+#endif
+#ifdef WICED_APP_AMS_INCLUDED
     case WATCH_INIT_STATE_AMS:
         wiced_bt_ams_client_discovery_result(p_data);
         break;
+#endif
     default:
         if (p_data->discovery_type  == GATT_DISCOVER_SERVICES_ALL)
         {
             if (p_data->discovery_data.group_value.service_type.len == 16)
             {
                 WICED_BT_TRACE("%04x e:%04x uuid\n", p_data->discovery_data.group_value.s_handle, p_data->discovery_data.group_value.e_handle);
+#ifdef WICED_APP_ANCS_INCLUDED
                 if (memcmp(p_data->discovery_data.group_value.service_type.uu.uuid128, ANCS_SERVICE, 16) == 0)
                 {
                     WICED_BT_TRACE("ANCS Service found s:%04x e:%04x\n",
@@ -388,7 +401,9 @@ wiced_bt_gatt_status_t le_peripheral_gatt_discovery_result(wiced_bt_gatt_discove
                     watch_hostinfo.ancs_s_handle = p_data->discovery_data.group_value.s_handle;
                     watch_hostinfo.ancs_e_handle = p_data->discovery_data.group_value.e_handle;
                 }
-                else if (memcmp(p_data->discovery_data.group_value.service_type.uu.uuid128, AMS_SERVICE, 16) == 0)
+#endif
+#ifdef WICED_APP_AMS_INCLUDED
+                if (memcmp(p_data->discovery_data.group_value.service_type.uu.uuid128, AMS_SERVICE, 16) == 0)
                 {
                     WICED_BT_TRACE("AMS Service found s:%04x e:%04x\n",
                             p_data->discovery_data.group_value.s_handle,
@@ -396,6 +411,7 @@ wiced_bt_gatt_status_t le_peripheral_gatt_discovery_result(wiced_bt_gatt_discove
                     watch_hostinfo.ams_s_handle = p_data->discovery_data.group_value.s_handle;
                     watch_hostinfo.ams_e_handle = p_data->discovery_data.group_value.e_handle;
                 }
+#endif
             }
         }
         else
@@ -412,7 +428,7 @@ wiced_bt_gatt_status_t le_peripheral_gatt_discovery_result(wiced_bt_gatt_discove
 wiced_bt_gatt_status_t le_peripheral_gatt_discovery_complete(wiced_bt_gatt_discovery_complete_t *p_data)
 {
     wiced_result_t result;
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     wiced_bt_gatt_discovery_type_t discovery_type = p_data->discovery_type;
 #else
     wiced_bt_gatt_discovery_type_t discovery_type = p_data->disc_type;
@@ -422,15 +438,20 @@ wiced_bt_gatt_status_t le_peripheral_gatt_discovery_complete(wiced_bt_gatt_disco
 
     switch (watch_app_state.init_state)
     {
+#ifdef WICED_APP_ANCS_INCLUDED
     case WATCH_INIT_STATE_ANCS:
         wiced_bt_ancs_client_discovery_complete(p_data);
         break;
+#endif
+#ifdef WICED_APP_AMS_INCLUDED
     case WATCH_INIT_STATE_AMS:
         wiced_bt_ams_client_discovery_complete(p_data);
         break;
+#endif
     default:
         if (discovery_type == GATT_DISCOVER_SERVICES_ALL)
         {
+#if (defined (WICED_APP_ANCS_INCLUDED) || defined (WICED_APP_AMS_INCLUDED))
             WICED_BT_TRACE("ANCS:%04x-%04x AMS:%04x-%04x\n",
                             watch_hostinfo.ancs_s_handle, watch_hostinfo.ancs_e_handle,
                             watch_hostinfo.ams_s_handle, watch_hostinfo.ams_e_handle);
@@ -464,6 +485,7 @@ wiced_bt_gatt_status_t le_peripheral_gatt_discovery_complete(wiced_bt_gatt_disco
                     watch_init_next_client();
                 }
             }
+#endif
         }
         else
         {
@@ -481,16 +503,20 @@ void watch_process_read_rsp(wiced_bt_gatt_operation_complete_t *p_data)
     WICED_BT_TRACE("read response handle:%04x\n", p_data->response_data.att_value.handle);
 
     // Check the handle to figure out which client this answer belongs to
+#ifdef WICED_APP_ANCS_INCLUDED
     if ((p_data->response_data.att_value.handle >= watch_hostinfo.ancs_s_handle) &&
              (p_data->response_data.att_value.handle <= watch_hostinfo.ancs_e_handle))
     {
         wiced_bt_ancs_client_read_rsp(p_data);
     }
-    else if ((p_data->response_data.att_value.handle >= watch_hostinfo.ams_s_handle) &&
+#endif
+#ifdef WICED_APP_AMS_INCLUDED
+    if ((p_data->response_data.att_value.handle >= watch_hostinfo.ams_s_handle) &&
              (p_data->response_data.att_value.handle <= watch_hostinfo.ams_e_handle))
     {
         wiced_bt_ams_client_read_rsp(p_data);
     }
+#endif
 }
 
 /*
@@ -501,16 +527,20 @@ void watch_process_write_rsp(wiced_bt_gatt_operation_complete_t *p_data)
     WICED_BT_TRACE("write response handle:%04x\n", p_data->response_data.handle);
 
     // Check the handle to figure out which client this answer belongs to
+#ifdef WICED_APP_ANCS_INCLUDED
     if ((p_data->response_data.handle >= watch_hostinfo.ancs_s_handle) &&
         (p_data->response_data.handle <= watch_hostinfo.ancs_e_handle))
     {
         wiced_bt_ancs_client_write_rsp(p_data);
     }
-    else if ((p_data->response_data.handle >= watch_hostinfo.ams_s_handle) &&
+#endif
+#ifdef WICED_APP_AMS_INCLUDED
+    if ((p_data->response_data.handle >= watch_hostinfo.ams_s_handle) &&
              (p_data->response_data.handle <= watch_hostinfo.ams_e_handle))
     {
         wiced_bt_ams_client_write_rsp(p_data);
     }
+#endif
 }
 
 /*
@@ -521,16 +551,20 @@ void watch_notification_handler(wiced_bt_gatt_operation_complete_t *p_data)
     WICED_BT_TRACE("notification handle:%04x\n", p_data->response_data.att_value.handle);
 
     // Check the handle to figure out which client this answer belongs to
+#ifdef WICED_APP_ANCS_INCLUDED
     if ((p_data->response_data.att_value.handle >= watch_hostinfo.ancs_s_handle) &&
         (p_data->response_data.att_value.handle < watch_hostinfo.ancs_e_handle))
     {
         wiced_bt_ancs_client_notification_handler(p_data);
     }
-    else if ((p_data->response_data.att_value.handle >= watch_hostinfo.ams_s_handle) &&
+#endif
+#ifdef WICED_APP_AMS_INCLUDED
+    if ((p_data->response_data.att_value.handle >= watch_hostinfo.ams_s_handle) &&
         (p_data->response_data.att_value.handle < watch_hostinfo.ams_e_handle))
     {
         wiced_bt_ams_client_notification_handler(p_data);
     }
+#endif
 }
 
 /*
@@ -539,18 +573,23 @@ void watch_notification_handler(wiced_bt_gatt_operation_complete_t *p_data)
 void watch_indication_handler(wiced_bt_gatt_operation_complete_t *p_data)
 {
     // remember GATT service start and end handles
+#ifdef WICED_APP_ANCS_INCLUDED
     if ((p_data->response_data.att_value.handle >= watch_hostinfo.ancs_s_handle) &&
         (p_data->response_data.att_value.handle < watch_hostinfo.ancs_e_handle))
     {
         wiced_bt_ancs_client_indication_handler(p_data);
     }
-    else if ((p_data->response_data.att_value.handle >= watch_hostinfo.ams_s_handle) &&
+#endif
+#ifdef WICED_APP_AMS_INCLUDED
+    if ((p_data->response_data.att_value.handle >= watch_hostinfo.ams_s_handle) &&
         (p_data->response_data.att_value.handle < watch_hostinfo.ams_e_handle))
     {
         wiced_bt_ams_client_indication_handler(p_data);
     }
+#endif
 }
 
+#ifdef WICED_APP_AMS_INCLUDED
 static void le_peripheral_ams_client_event_handler_notification(wiced_bt_ams_client_notification_id_t opcode, uint16_t data_len, uint8_t *p_data)
 {
     uint8_t event_data[60];
@@ -618,19 +657,23 @@ static void le_peripheral_ams_client_event_handler(wiced_bt_ams_client_event_t e
         break;
     }
 }
+#endif
 
 /*
  * This function is called during startup operation to start initialization of the next client
  */
 void watch_init_next_client(void)
 {
+#ifdef WICED_APP_AMS_INCLUDED
     wiced_bt_ams_client_config_t ams_client_config;
+#endif
 
     WICED_BT_TRACE("%s state:%d\n", __FUNCTION__, watch_app_state.init_state);
 
     switch (watch_app_state.init_state)
     {
     case WATCH_INIT_STATE_NONE:
+#ifdef WICED_APP_ANCS_INCLUDED
         watch_app_state.init_state = WATCH_INIT_STATE_ANCS;
 
         if (wiced_bt_ancs_client_start(watch_app_state.conn_id, watch_hostinfo.ancs_s_handle, watch_hostinfo.ancs_e_handle))
@@ -638,6 +681,8 @@ void watch_init_next_client(void)
         /* No break on purpose (if not ANCS Service found) */
 
     case WATCH_INIT_STATE_ANCS:
+#endif
+#ifdef WICED_APP_AMS_INCLUDED
         watch_app_state.init_state = WATCH_INIT_STATE_AMS;
 
         ams_client_config.conn_id           = watch_app_state.conn_id;
@@ -651,7 +696,7 @@ void watch_init_next_client(void)
         /* No break on purpose  (if not AMS Service found) */
 
     case WATCH_INIT_STATE_AMS:
-
+#endif
         // We are done with initial settings, and need to stay connected.
         watch_app_state.init_state = WATCH_INIT_STATE_NONE;
     }
@@ -672,7 +717,7 @@ void watch_util_send_discover(uint16_t conn_id, wiced_bt_gatt_discovery_type_t t
     param.s_handle = s_handle;
     param.e_handle = e_handle;
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     status = wiced_bt_gatt_client_send_discover(conn_id, type, &param);
 
     WICED_BT_TRACE("wiced_bt_gatt_client_send_discover %d\n", status);
@@ -686,7 +731,7 @@ void watch_util_send_discover(uint16_t conn_id, wiced_bt_gatt_discovery_type_t t
 void watch_util_send_read_by_handle(uint16_t conn_id, uint16_t handle)
 {
     wiced_bt_gatt_status_t     status;
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     status = wiced_bt_gatt_client_send_read_handle(conn_id, handle, 0,
             NULL, 0, GATT_AUTH_REQ_NONE);
 
@@ -706,7 +751,7 @@ void watch_util_send_read_by_handle(uint16_t conn_id, uint16_t handle)
 wiced_bool_t watch_util_send_read_by_type(uint16_t conn_id, uint16_t s_handle, uint16_t e_handle, uint16_t uuid)
 {
     wiced_bt_gatt_status_t     status;
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     wiced_bt_uuid_t uuid_buf;
 
     uuid_buf.len = 2;
@@ -760,5 +805,3 @@ void peripheral_timeout(uint32_t arg)
     watch_util_send_discover(watch_app_state.conn_id, GATT_DISCOVER_SERVICES_ALL,
             UUID_ATTRIBUTE_PRIMARY_SERVICE, 1, 0xffff);
 }
-
-#endif /* WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED */

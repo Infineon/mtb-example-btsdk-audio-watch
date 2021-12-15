@@ -127,7 +127,7 @@ static void wiced_bt_send_test_command( uint16_t opcode, uint8_t* params, uint8_
     }
     else
     {
-#if BTSTACK_VER >= 0x01020000
+#if BTSTACK_VER >= 0x03000001
         /* TODO: allocate buffer for sending HCI command */
 
 #else

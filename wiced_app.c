@@ -36,7 +36,7 @@
  * This file implements the entry point of the Wiced Application
  */
 #include <sparcommon.h>
-#ifdef WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
+#ifdef WICED_APP_AMS_INCLUDED
 #include <wiced_bt_ams.h>
 #endif
 #ifdef WICED_APP_HFP_AG_INCLUDED
@@ -79,8 +79,8 @@ static wiced_bt_buffer_pool_t* watch_app_pool_big = NULL;
 static wiced_bt_buffer_pool_t* watch_app_pool_small = NULL;
 #endif
 
-#if BTSTACK_VER >= 0x01020000
-#define BT_STACK_HEAP_SIZE          1024 * 6
+#if BTSTACK_VER >= 0x03000001
+#define BT_STACK_HEAP_SIZE          1024 * 7
 wiced_bt_heap_t *p_default_heap = NULL;
 #endif
 
@@ -124,11 +124,12 @@ APPLICATION_START()
 #endif // CYW43012C0
 #else
 #ifdef CYW55572
-    // wiced_platform_init already handled it
+    // Default PUART baudrate is 115200, update it to 3M before calling wiced_set_debug_uart(WICED_ROUTE_DEBUG_TO_PUART);
+    wiced_set_debug_uart_baudrate(3000000);
 #else /* !CYW55572 */
     wiced_hal_puart_init();
 #if ( defined(CYW20706A2) )
-    wiced_hal_puart_set_baudrate( 3000000 );
+    wiced_hal_puart_configuration( 3000000, PARITY_NONE, STOP_BIT_2 );
     wiced_hal_puart_select_uart_pads( WICED_PUART_RXD, WICED_PUART_TXD, 0, 0);
 #else
     wiced_hal_puart_configuration( 3000000, PARITY_NONE, STOP_BIT_2 );
@@ -138,7 +139,7 @@ APPLICATION_START()
 #endif // NO_PUART_SUPPORT
 #endif // WICED_BT_TRACE_ENABLE
 
-#if BTSTACK_VER >= 0x01020000
+#if BTSTACK_VER >= 0x03000001
     /* Create default heap */
     p_default_heap = wiced_bt_create_heap("default_heap", NULL, BT_STACK_HEAP_SIZE, NULL,
             WICED_TRUE);
@@ -149,7 +150,7 @@ APPLICATION_START()
     }
 #endif
 
-#if BTSTACK_VER >= 0x01020000
+#if BTSTACK_VER >= 0x03000001
     result = wiced_bt_stack_init(btm_event_handler, &wiced_bt_cfg_settings);
 #else
     result = wiced_bt_stack_init(btm_event_handler, &wiced_bt_cfg_settings, wiced_app_cfg_buf_pools);
@@ -227,6 +228,12 @@ void write_eir(void)
     UINT16_TO_STREAM(p, UUID_SERVCLASS_GENERIC_AUDIO);      nb_uuid++;
 #endif
 
+#ifdef WICED_APP_PANU_INCLUDED
+    UINT16_TO_STREAM(p, UUID_SERVCLASS_PANU);               nb_uuid++;
+#endif
+#ifdef WICED_APP_PANNAP_INCLUDED
+    UINT16_TO_STREAM(p, UUID_SERVCLASS_NAP);                nb_uuid++;
+#endif
     /* Now, we can update the UUID Tag's length */
     UINT8_TO_STREAM(p_tmp, (nb_uuid * LEN_UUID_16) + 1);
 
@@ -234,7 +241,7 @@ void write_eir(void)
     UINT8_TO_STREAM(p, 0x00);
 
     // print EIR data
-    wiced_bt_trace_array( "EIR :", ( uint8_t* )( pBuf ), MIN( p - ( uint8_t* )pBuf, 100 ) );
+    WICED_BT_TRACE_ARRAY( ( uint8_t* )( pBuf ), MIN( p - ( uint8_t* )pBuf, 100 ), "EIR :" );
     wiced_bt_dev_write_eir( pBuf, (uint16_t)(p - pBuf) );
 
     /* Allocated buffer not anymore needed. Free it */
@@ -252,6 +259,10 @@ wiced_result_t btm_event_handler(wiced_bt_management_evt_t event, wiced_bt_manag
     wiced_bt_power_mgmt_notification_t *p_power_mgmt_notification;
     wiced_bt_dev_pairing_cplt_t        *p_pairing_cmpl;
     uint8_t                             pairing_result;
+#if BTSTACK_VER >= 0x03000001
+    wiced_bt_device_address_t zero_bda = {0};
+    wiced_bt_management_evt_data_t modified_event_data;
+#endif
 
     WICED_BT_TRACE( "btm_event_handler 0x%02x\n", event );
 
@@ -350,6 +361,25 @@ wiced_result_t btm_event_handler(wiced_bt_management_evt_t event, wiced_bt_manag
 
         case BTM_PAIRED_DEVICE_LINK_KEYS_UPDATE_EVT:
             /* Check if we already have information saved for this bd_addr */
+#if BTSTACK_VER >= 0x03000001
+            // LE connection will have bd_addr(identity_addr) and conn_addr(random_addr)
+            if ( memcmp(p_event_data->paired_device_link_keys_update.conn_addr, zero_bda, sizeof(wiced_bt_device_address_t)) != 0 )
+            {
+                // Save link key infomation for conn_addr
+                memcpy(&modified_event_data, p_event_data, sizeof(wiced_bt_management_evt_data_t));
+                memcpy(modified_event_data.paired_device_link_keys_update.bd_addr, modified_event_data.paired_device_link_keys_update.conn_addr, sizeof(wiced_bt_device_address_t));
+
+                if ( ( nvram_id = hci_control_find_nvram_id( modified_event_data.paired_device_link_keys_update.bd_addr, BD_ADDR_LEN ) ) == 0)
+                {
+                    // This is the first time, allocate id for the new memory chunk
+                    nvram_id = hci_control_alloc_nvram_id( );
+                    WICED_BT_TRACE( "Allocated NVRAM ID:%d\n", nvram_id );
+                }
+                bytes_written = hci_control_write_nvram( nvram_id, sizeof( wiced_bt_device_link_keys_t ), &modified_event_data.paired_device_link_keys_update, WICED_FALSE );
+
+                WICED_BT_TRACE("NVRAM write:id:%d bytes:%d dev: [%B]\n", nvram_id, bytes_written, modified_event_data.paired_device_link_keys_update.bd_addr);
+            }
+#endif
             if ( ( nvram_id = hci_control_find_nvram_id( p_event_data->paired_device_link_keys_update.bd_addr, BD_ADDR_LEN ) ) == 0)
             {
                 // This is the first time, allocate id for the new memory chunk

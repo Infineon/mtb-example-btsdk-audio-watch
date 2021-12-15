@@ -157,7 +157,7 @@ wiced_result_t avrc_app_hci_pass_through (uint16_t handle, uint8_t op_id, uint8_
     if ( rc_app_cb.connection_state == REMOTE_CONTROL_CONNECTED )
     {
 #ifdef WICED_APP_AUDIO_RC_CT_INCLUDED
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
         result = wiced_bt_avrc_ct_send_pass_through_cmd((uint8_t) handle, op_id, state, 0 );
 #else
         result = wiced_bt_avrc_ct_send_pass_through_cmd( handle, op_id, state, 0, NULL );
@@ -182,7 +182,7 @@ wiced_result_t avrc_app_hci_pass_through (uint16_t handle, uint8_t op_id, uint8_
 wiced_result_t avrcp_app_hci_set_player_settings (uint16_t handle, uint8_t attr_id )
 {
     wiced_result_t result = WICED_NOT_CONNECTED;
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     wiced_bt_avrc_metadata_set_app_value_cmd_t app_param;
     wiced_bt_avrc_app_setting_t app_setting;
 #else
@@ -196,7 +196,7 @@ wiced_result_t avrcp_app_hci_set_player_settings (uint16_t handle, uint8_t attr_
     {
         /* Put the request into the appropriate structure for the api. We only send a single
          * attribute at a time from the  MCU */
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
         app_setting.attr_id = attr_id;
         app_param.num_val      = 1;
         app_param.p_vals   = &app_setting;
@@ -464,7 +464,7 @@ static int avrc_event_id_to_hci_event[] =
  *
  * @return          Nothing
  */
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
 void avrc_handle_registered_notification_rsp(uint8_t handle,
                                              wiced_bt_avrc_rsp_t *avrc_rsp)
 #else
@@ -476,7 +476,7 @@ void avrc_handle_registered_notification_rsp(uint8_t handle,
     uint8_t        event_data[MAX_REG_EVENT_SIZE] = {0};
     uint16_t       event_data_size = sizeof(uint16_t);
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     wiced_bt_avrc_metadata_reg_notif_rsp_t *reg_notif = &avrc_rsp->type.metadata.u.reg_notif;
 #else
     wiced_bt_avrc_reg_notif_rsp_t *reg_notif = (wiced_bt_avrc_reg_notif_rsp_t *)avrc_rsp;
@@ -517,15 +517,53 @@ void avrc_handle_registered_notification_rsp(uint8_t handle,
 
         event_data[event_data_size++] = reg_notif->param.player_setting.num_attr;
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
         for (i = 0; i < reg_notif->param.player_setting.num_attr && reg_notif->param.player_setting.p_attrs; i = i+2)
         {
+            // Update shuffle status in app_setting
+            if ( reg_notif->param.player_setting.p_attrs[i] == AVRC_PLAYER_SETTING_SHUFFLE )
+            {
+                if ( reg_notif->param.player_setting.p_attrs[i+1] == AVRC_PLAYER_VAL_OFF )
+                {
+                    //Shuffle Off
+                    rc_app_cb.app_setting[AVRC_PLAYER_SETTING_SHUFFLE].current_index = 0;
+                }
+                else if (  reg_notif->param.player_setting.p_attrs[i+1] == AVRC_PLAYER_VAL_ALL_SHUFFLE )
+                {
+                    //Shuffle All
+                    rc_app_cb.app_setting[AVRC_PLAYER_SETTING_SHUFFLE].current_index = 1;
+                }
+                else
+                {
+                    //Unexpected attr_value
+                }
+            }
+
             event_data[event_data_size++] = reg_notif->param.player_setting.p_attrs[i];
             event_data[event_data_size++] = reg_notif->param.player_setting.p_attrs[i+1];
         }
 #else
         for (i = 0; i < reg_notif->param.player_setting.num_attr; i++)
         {
+            // Update shuffle status in app_setting
+            if ( reg_notif->param.player_setting.attr_id[i] == AVRC_PLAYER_SETTING_SHUFFLE )
+            {
+                if ( reg_notif->param.player_setting.attr_value[i] == AVRC_PLAYER_VAL_OFF )
+                {
+                    //Shuffle Off
+                    rc_app_cb.app_setting[AVRC_PLAYER_SETTING_SHUFFLE].current_index = 0;
+                }
+                else if ( reg_notif->param.player_setting.attr_value[i] == AVRC_PLAYER_VAL_ALL_SHUFFLE )
+                {
+                    //Shuffle All
+                    rc_app_cb.app_setting[AVRC_PLAYER_SETTING_SHUFFLE].current_index = 1;
+                }
+                else
+                {
+                    //Unexpected attr_value
+                }
+            }
+
             event_data[event_data_size++] = reg_notif->param.player_setting.attr_id[i];
             event_data[event_data_size++] = reg_notif->param.player_setting.attr_value[i];
         }
@@ -561,7 +599,7 @@ void avrc_handle_registered_notification_rsp(uint8_t handle,
  *
  * @return          Nothing
  */
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
 void avrc_handle_element_attribute_rsp(uint8_t handle,
                                        wiced_bt_avrc_rsp_t *avrc_rsp)
 #else
@@ -573,7 +611,7 @@ void avrc_handle_element_attribute_rsp(uint8_t handle,
     int rsp_size;
     uint8_t *rsp;
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     wiced_bt_avrc_metadata_get_element_attrs_rsp_t *elem_attrs_rsp = &avrc_rsp->type.metadata.u.get_elem_attrs;
     wiced_bt_avrc_attr_entry_t attr_entry;
     /* If successful, make room for the response. */
@@ -729,7 +767,7 @@ void avrc_send_app_setting_info(uint8_t handle)
  *
  * @return          Nothing
  */
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
 void avrc_handle_list_player_app_attribute_rsp(uint8_t handle,
                                                wiced_bt_avrc_rsp_t *avrc_rsp)
 #else
@@ -742,7 +780,7 @@ void avrc_handle_list_player_app_attribute_rsp(uint8_t handle,
     uint8_t         pdu;
     uint8_t         *p_attrs;
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     wiced_bt_avrc_metadata_list_app_attr_rsp_t *list_app_attr = &avrc_rsp->type.metadata.u.list_app_attr;
     pdu = avrc_rsp->type.metadata.metadata_hdr.pdu;
     p_attrs = list_app_attr->p_attrs;
@@ -796,7 +834,7 @@ void avrc_handle_list_player_app_attribute_rsp(uint8_t handle,
  *
  * @return          Nothing
  */
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
 void avrc_handle_list_player_app_values_rsp(uint8_t handle,
                                            wiced_bt_avrc_rsp_t *avrc_rsp)
 #else
@@ -804,7 +842,7 @@ void avrc_handle_list_player_app_values_rsp(uint8_t handle,
                                            wiced_bt_avrc_response_t *avrc_rsp)
 #endif
 {
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     wiced_bt_avrc_metadata_list_app_values_rsp_t *list_app_values = &avrc_rsp->type.metadata.u.list_app_values;
     uint8_t         attr_id = avrc_rsp->hdr.opcode;
     uint8_t         pdu = avrc_rsp->type.metadata.metadata_hdr.pdu;
@@ -848,7 +886,7 @@ void avrc_handle_list_player_app_values_rsp(uint8_t handle,
  *
  * @return          Nothing
  */
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
 void avrc_handle_get_player_app_value_rsp(uint8_t handle,
                                            wiced_bt_avrc_rsp_t *avrc_rsp)
 #else
@@ -856,7 +894,7 @@ void avrc_handle_get_player_app_value_rsp(uint8_t handle,
                                            wiced_bt_avrc_response_t *avrc_rsp)
 #endif
 {
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     wiced_bt_avrc_metadata_get_cur_app_value_rsp_t *get_cur_app_val = &avrc_rsp->type.metadata.u.get_cur_app_val;
     uint8_t pdu = avrc_rsp->type.metadata.metadata_hdr.pdu;
     uint8_t idx = 0;
@@ -870,7 +908,7 @@ void avrc_handle_get_player_app_value_rsp(uint8_t handle,
     /* We only asked for one attribute setting. */
     if (get_cur_app_val->num_val == 1)
     {
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
         uint8_t attr_id  = get_cur_app_val->p_vals[idx++];
         uint8_t attr_val = get_cur_app_val->p_vals[idx++];
 #else
@@ -914,7 +952,7 @@ void avrc_handle_get_player_app_value_rsp(uint8_t handle,
  *
  * @return          Nothing
  */
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
 void avrc_response_cback(  uint8_t handle,
                           wiced_bt_avrc_rsp_t *avrc_rsp)
 #else
@@ -924,7 +962,7 @@ void avrc_response_cback(  uint8_t handle,
 {
     uint8_t pdu;
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     pdu = avrc_rsp->type.metadata.metadata_hdr.pdu;
 #else
     pdu = avrc_rsp->pdu;
@@ -977,7 +1015,7 @@ void avrc_response_cback(  uint8_t handle,
  *
  * @return          Nothing
  */
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
 void avrc_command_cback( uint8_t handle,
                          wiced_bt_avrc_metadata_cmd_t *avrc_cmd)
 {
@@ -1005,7 +1043,7 @@ void avrc_command_cback( uint8_t handle,
  *
  * @return          Nothing
  */
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
 void avrc_passthrough_cback(uint8_t handle,
         wiced_bt_avrc_ctype_t ctype,
         wiced_bt_avrc_pass_thru_hdr_t *avrc_pass_rsp)
@@ -1014,7 +1052,7 @@ void avrc_passthrough_cback(uint8_t handle,
                              wiced_bt_avrc_msg_pass_t *avrc_pass_rsp )
 #endif
 {
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     uint8_t operation_id = avrc_pass_rsp->operation_id;
 #else
     uint8_t operation_id = avrc_pass_rsp->op_id;;

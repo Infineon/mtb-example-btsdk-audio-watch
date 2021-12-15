@@ -521,14 +521,8 @@ static void handsfree_hfp_init(void)
  */
 void hci_control_hf_init(void)
 {
-    wiced_result_t result;
-
     handsfree_app_states.pairing_allowed = WICED_FALSE;
-    result = wiced_init_timer(&handsfree_app_states.hfp_timer, hfp_timer_expiry_handler, 0, WICED_MILLI_SECONDS_TIMER);
-    if (result != WICED_SUCCESS)
-    {
-        WICED_BT_TRACE("ERROR wiced_init_timer %u\n", result);
-    }
+    wiced_init_timer(&handsfree_app_states.hfp_timer, hfp_timer_expiry_handler, 0, WICED_MILLI_SECONDS_TIMER);
     handsfree_hfp_init();
 }
 

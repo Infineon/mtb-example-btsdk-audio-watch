@@ -81,8 +81,12 @@
 #define HANDLE_HFP_AG                           0x10004
 // SDP Record handle for HFP Hands-Free Unit
 #define HANDLE_HFP_HF                           0x10005
+
+#define HANDLE_PAN_PANU                         0x10006
+#define HANDLE_PAN_PANNAP                       0x10007
+
 // SDP Record handle for PNP (Device Information)
-#define HANDLE_PNP                              0x10006
+#define HANDLE_PNP                              0x10008
 
 #define WICED_DEVICE_NAME                       "Watch"
 
@@ -109,148 +113,6 @@ const uint8_t pincode[WICED_PIN_CODE_LEN] = { 0x30, 0x30, 0x30, 0x30 };
 /*****************************************************************************
  * wiced_bt core stack configuration
  ****************************************************************************/
-#if BTSTACK_VER > 0x01020000
-/* BLE SCAN Setting */
-const wiced_bt_cfg_ble_scan_settings_t wiced_bt_cfg_scan_settings =
-{
-    .scan_mode = BTM_BLE_SCAN_MODE_ACTIVE, /**< BLE scan mode ( BTM_BLE_SCAN_MODE_PASSIVE, BTM_BLE_SCAN_MODE_ACTIVE, or BTM_BLE_SCAN_MODE_NONE ) */
-
-    /* Advertisement scan configuration */
-    .high_duty_scan_interval = 96, /**< High duty scan interval */
-    .high_duty_scan_window = 48,   /**< High duty scan window */
-    .high_duty_scan_duration = 30, /**< High duty scan duration in seconds ( 0 for infinite ) */
-
-    .low_duty_scan_interval = 2048,/**< Low duty scan interval  */
-    .low_duty_scan_window = 48,    /**< Low duty scan window */
-    .low_duty_scan_duration = 60,  /**< Low duty scan duration in seconds ( 0 for infinite ) */
-
-    /* Connection scan configuration */
-    .high_duty_conn_scan_interval = 96, /**< High duty cycle connection scan interval */
-    .high_duty_conn_scan_window = 48,   /**< High duty cycle connection scan window */
-    .high_duty_conn_duration = 30,      /**< High duty cycle connection duration in seconds ( 0 for infinite ) */
-
-    .low_duty_conn_scan_interval = 2048, /**< Low duty cycle connection scan interval */
-    .low_duty_conn_scan_window = 48,    /**< Low duty cycle connection scan window */
-    .low_duty_conn_duration = 30,       /**< Low duty cycle connection duration in seconds ( 0 for infinite ) */
-
-    /* Connection configuration */
-    .conn_min_interval = 112,                                                  /**< Minimum connection interval */
-    .conn_max_interval = 128,                                                  /**< Maximum connection interval */
-    .conn_latency = WICED_BT_CFG_DEFAULT_CONN_LATENCY,                         /**< Connection latency */
-    .conn_supervision_timeout = WICED_BT_CFG_DEFAULT_CONN_SUPERVISION_TIMEOUT, /**< Connection link supervision timeout */
-};
-
-/* BLE ADV Setting */
-const wiced_bt_cfg_ble_advert_settings_t wiced_bt_cfg_adv_settings =
-{
-    .channel_map = BTM_BLE_ADVERT_CHNL_37 | /**< Advertising channel map ( mask of BTM_BLE_ADVERT_CHNL_37, BTM_BLE_ADVERT_CHNL_38, BTM_BLE_ADVERT_CHNL_39 ) */
-    BTM_BLE_ADVERT_CHNL_38 |
-    BTM_BLE_ADVERT_CHNL_39,
-
-    .high_duty_min_interval          = WICED_BT_CFG_DEFAULT_HIGH_DUTY_ADV_MIN_INTERVAL,            /**< High duty undirected connectable minimum advertising interval */
-    .high_duty_max_interval          = WICED_BT_CFG_DEFAULT_HIGH_DUTY_ADV_MAX_INTERVAL,            /**< High duty undirected connectable maximum advertising interval */
-    .high_duty_duration              = 30,                                                         /**< High duty undirected connectable advertising duration in seconds (0 for infinite) */
-
-    .low_duty_min_interval           = WICED_BT_CFG_DEFAULT_LOW_DUTY_ADV_MIN_INTERVAL,             /**< Low duty undirected connectable minimum advertising interval */
-    .low_duty_max_interval           = WICED_BT_CFG_DEFAULT_LOW_DUTY_ADV_MAX_INTERVAL,             /**< Low duty undirected connectable maximum advertising interval */
-    .low_duty_duration               = 60,                                                         /**< Low duty undirected connectable advertising duration in seconds (0 for infinite) */
-
-    .high_duty_directed_min_interval = WICED_BT_CFG_DEFAULT_HIGH_DUTY_DIRECTED_ADV_MIN_INTERVAL, /**< High duty directed connectable minimum advertising interval */
-    .high_duty_directed_max_interval = WICED_BT_CFG_DEFAULT_HIGH_DUTY_DIRECTED_ADV_MAX_INTERVAL, /**< High duty directed connectable maximum advertising interval */
-
-    .low_duty_directed_min_interval  = WICED_BT_CFG_DEFAULT_LOW_DUTY_DIRECTED_ADV_MIN_INTERVAL, /**< Low duty directed connectable minimum advertising interval */
-    .low_duty_directed_max_interval  = WICED_BT_CFG_DEFAULT_LOW_DUTY_DIRECTED_ADV_MAX_INTERVAL, /**< Low duty directed connectable maximum advertising interval */
-    .low_duty_directed_duration      = 30,                                                          /**< Low duty directed connectable advertising duration in seconds ( 0 for infinite ) */
-
-    .high_duty_nonconn_min_interval  = WICED_BT_CFG_DEFAULT_HIGH_DUTY_NONCONN_ADV_MIN_INTERVAL, /**< High duty non-connectable minimum advertising interval */
-    .high_duty_nonconn_max_interval  = WICED_BT_CFG_DEFAULT_HIGH_DUTY_NONCONN_ADV_MAX_INTERVAL, /**< High duty non-connectable maximum advertising interval */
-    .high_duty_nonconn_duration      = 30,                                                          /**< High duty non-connectable advertising duration in seconds ( 0 for infinite ) */
-
-    .low_duty_nonconn_min_interval   = WICED_BT_CFG_DEFAULT_LOW_DUTY_NONCONN_ADV_MIN_INTERVAL, /**< Low duty non-connectable minimum advertising interval */
-    .low_duty_nonconn_max_interval   = WICED_BT_CFG_DEFAULT_LOW_DUTY_NONCONN_ADV_MAX_INTERVAL, /**< Low duty non-connectable maximum advertising interval */
-    .low_duty_nonconn_duration       = 0,                                                          /**< Low duty non-connectable advertising duration in seconds ( 0 for infinite ) */
-};
-
-/* L2CAP Setting */
-const wiced_bt_cfg_l2cap_application_t wiced_bt_cfg_l2cap_app = /* Application managed l2cap protocol configuration */
-{
-    /* BR EDR l2cap configuration */
-    .max_app_l2cap_psms = 0,      /**< Maximum number of application-managed BR/EDR PSMs */
-    .max_app_l2cap_channels = 0, /**< Maximum number of application-managed BR/EDR channels  */
-
-    .max_app_l2cap_br_edr_ertm_chnls = 0,  /**< Maximum ERTM channels allowed */
-    .max_app_l2cap_br_edr_ertm_tx_win = 0, /**< Maximum ERTM TX Window allowed */
-                            /* LE L2cap connection-oriented channels configuration */
-    .max_app_l2cap_le_fixed_channels = 0,
-};
-
-/* BR Setting */
-const wiced_bt_cfg_br_t wiced_bt_cfg_br =
-{
-    .br_max_simultaneous_links = 3,
-    .br_max_rx_pdu_size = 1024,
-    .device_class = {0x20, 0x07, 0x04},                     /**< Local device class */
-
-    .rfcomm_cfg = /* RFCOMM configuration */
-    {
-        .max_links = WICED_BT_RFCOMM_MAX_CONN, /**< Maximum number of simultaneous connected remote devices. Should be less than or equal to l2cap_application_max_links */
-        .max_ports = WICED_BT_RFCOMM_MAX_CONN, /**< Maximum number of simultaneous RFCOMM ports */
-    },
-    .avdt_cfg = /* Audio/Video Distribution configuration */
-    {
-        .max_links = 1,     /**< Maximum simultaneous audio/video links */
-        .max_seps  = 3,     /**< Maximum number of stream end points */
-    },
-    .avrc_cfg = /* Audio/Video Remote Control configuration */
-    {
-        .max_links = 1, /**< Maximum simultaneous remote control links */
-    },
-};
-
-/* ISOC Setting */
-const wiced_bt_cfg_isoc_t wiced_bt_cfg_isoc =
-{
-    .max_cis_conn = 0,
-    .max_cig_count = 0,
-    .max_sdu_size = 0,
-    .channel_count = 0,
-    .max_buffers_per_cis = 0,
-};
-
-/* BLE Setting */
-const wiced_bt_cfg_ble_t wiced_bt_cfg_ble =
-{
-    .ble_max_simultaneous_links = 3,
-    .ble_max_rx_pdu_size = 365,
-    .appearance = APPEARANCE_GENERIC_TAG,    /**< GATT appearance (see gatt_appearance_e) */
-    .rpa_refresh_timeout = WICED_BT_CFG_DEFAULT_RANDOM_ADDRESS_NEVER_CHANGE,   /**< Interval of  random address refreshing - secs */
-    .host_addr_resolution_db_size = 5, /**< LE Address Resolution DB settings - effective only for pre 4.2 controller*/
-    .p_ble_scan_cfg = &wiced_bt_cfg_scan_settings,
-    .p_ble_advert_cfg = &wiced_bt_cfg_adv_settings,
-    .default_ble_power_level = 12,  /**< Default BLE Power */
-};
-
-/* GATT Setting */
-const wiced_bt_cfg_gatt_t wiced_bt_cfg_gatt =
-{
-    .max_db_service_modules = 0,  /**< Maximum number of service modules in the DB*/
-    .max_eatt_bearers = 0,        /**< Maximum number of allowed gatt bearers */
-};
-
- /* wiced_bt core stack configuration */
-const wiced_bt_cfg_settings_t wiced_bt_cfg_settings =
-{
-    .device_name = (uint8_t*)app_gap_device_name,            /**< Local device name ( NULL terminated ) */
-    .security_required = (BTM_SEC_BEST_EFFORT),             /**< Security requirements mask */
-
-    .p_br_cfg = &wiced_bt_cfg_br,
-    .p_ble_cfg = &wiced_bt_cfg_ble,
-    .p_gatt_cfg = &wiced_bt_cfg_gatt,
-    .p_isoc_cfg = &wiced_bt_cfg_isoc,
-    .p_l2cap_app_cfg = &wiced_bt_cfg_l2cap_app,
-};
-
-#else /* !BTSTACK_VER || BTSTACK_VER == 0x01020000 */
 const wiced_bt_cfg_settings_t wiced_bt_cfg_settings =
 {
     .device_name                         = (uint8_t*)app_gap_device_name,                               /**< Local device name (NULL terminated). Use same as configurator generated string.*/
@@ -361,11 +223,6 @@ const wiced_bt_cfg_settings_t wiced_bt_cfg_settings =
         /* LE L2cap fixed channel configuration */
         .max_le_l2cap_fixed_channels    = 1,                                                            /**< Maximum number of application managed fixed channels supported (in addition to mandatory channels 4, 5 and 6). > */
 #endif
-#if BTSTACK_VER == 0x01020000
-        .max_rx_mtu                     = 1000,                                                        /**< Maximum RX MTU allowed */
-        .max_ertm_chnls                 = 0,                                                           /**< Maximum ERTM channels */
-        .max_ertm_tx_win                = 0,                                                           /**< Maximum ERTM TX Window */
-#endif
     },
 
     .avdt_cfg =
@@ -390,29 +247,20 @@ const wiced_bt_cfg_settings_t wiced_bt_cfg_settings =
     .max_mtu_size                       = 365,                                                         /**< Maximum MTU size for GATT connections, should be between 23 and (max_attr_len + 5) */
     .max_pwr_db_val                     = 12                                                           /**< Max. power level of the device */
 #else
-#ifndef BTSTACK_VER
     /* Maximum number of buffer pools */
     .max_number_of_buffer_pools         = 7,                                                           /**< Maximum number of buffer pools in p_btm_cfg_buf_pools and by wiced_create_pool */
-#endif
 
     /* Interval of  random address refreshing */
     .rpa_refresh_timeout                = WICED_BT_CFG_DEFAULT_RANDOM_ADDRESS_NEVER_CHANGE,            /**< Interval of  random address refreshing - secs */
-#if BTSTACK_VER == 0x01020000
-    .stack_scratch_size                 = WICED_BT_CFG_DEFAULT_STACK_SCRATCH_SIZE,                     /**< Memory area reserved for the stack transient memory requirements */
-#endif
+
     /* BLE Filter Accept List size */
     .ble_filter_accept_list_size                = 2,                                                           /**< Maximum number of Filter Accept List devices allowed. Cannot be more than 128 */
 #endif
 
-#if defined(CYW20719B2) || defined(CYW20721B2) || defined(CYW20819A1) || defined (CYW20820A1) || BTSTACK_VER == 0x01020000
+#if defined(CYW20719B2) || defined(CYW20721B2) || defined(CYW20819A1) || defined (CYW20820A1)
     .default_ble_power_level            = 12,                                                           /**< Default LE power level, Refer lm_TxPwrTable table for the power range */
 #endif
-#if BTSTACK_VER == 0x01020000
-    .max_gatt_bearers                   = 3,                                                           /**< Maximum number of allowed gatt bearers */
-    .use_gatt_over_br_edr               = 1,                                                           /**< set to 1 to enable gatt over br edr */
-#endif
 };
-#endif /* BTSTACK_VER */
 
 #ifdef WICED_APP_AUDIO_SRC_INCLUDED
 #define SLEN_A2DP_SRC   (56 + 2)
@@ -439,9 +287,19 @@ const wiced_bt_cfg_settings_t wiced_bt_cfg_settings =
 #else
 #define SLEN_HFP_HF     0
 #endif
+#ifdef WICED_APP_PANU_INCLUDED
+#define SLEN_PAN_PANU   (108 + 2)
+#else
+#define SLEN_PAN_PANU   0
+#endif
+#ifdef WICED_APP_PANNAP_INCLUDED
+#define SLEN_PAN_PANNAP (126 + 2)
+#else
+#define SLEN_PAN_PANNAP   0
+#endif
 #define SLEN_PNP        (69 + 2)
 
-#define SLEN            (SLEN_A2DP_SRC + SLEN_AVRC_TG + SLEN_AVRC_CT + SLEN_HFP_AG + SLEN_HFP_HF + SLEN_PNP)
+#define SLEN            (SLEN_A2DP_SRC + SLEN_AVRC_TG + SLEN_AVRC_CT + SLEN_HFP_AG + SLEN_HFP_HF + SLEN_PAN_PANU + SLEN_PAN_PANNAP + SLEN_PNP)
 /*
  * This is the SDP database for the whole hci_control application
  */
@@ -544,6 +402,68 @@ const uint8_t wiced_app_cfg_sdp_record[] =
         SDP_ATTR_UINT2(ATTR_ID_SUPPORTED_FEATURES, SUPPORTED_FEATURES_ATT),
 #endif
 
+#ifdef WICED_APP_PANU_INCLUDED
+        SDP_ATTR_SEQUENCE_1(108),                                               // 2 byte
+            SDP_ATTR_RECORD_HANDLE(HANDLE_PAN_PANU),                            // 8 byte
+            SDP_ATTR_ID(ATTR_ID_SERVICE_CLASS_ID_LIST),                         // 3 byte
+                SDP_ATTR_SEQUENCE_1(3),                                         // 2 byte
+                    SDP_ATTR_UUID16(UUID_SERVCLASS_PANU),                       // 3 byte
+            SDP_ATTR_ID(ATTR_ID_PROTOCOL_DESC_LIST), SDP_ATTR_SEQUENCE_1(24),   // 3 + 2 byte
+                SDP_ATTR_SEQUENCE_1(6),                                         // 2 byte
+                    SDP_ATTR_UUID16(UUID_PROTOCOL_L2CAP),                       // 3 byte
+                    SDP_ATTR_VALUE_UINT2(BT_PSM_BNEP),                          // 3 byte
+                SDP_ATTR_SEQUENCE_1(14),                                        // 2 byte
+                    SDP_ATTR_UUID16(UUID_PROTOCOL_BNEP),                        // 3 byte
+                    SDP_ATTR_VALUE_UINT2(0x0100),                               // 3 byte
+                    SDP_ATTR_SEQUENCE_1(6),                                     // 2 byte
+                        SDP_ATTR_VALUE_UINT2(0x0800),                           // 3 byte
+                        SDP_ATTR_VALUE_UINT2(0x0806),                           // 3 byte
+            SDP_ATTR_ID(ATTR_ID_LANGUAGE_BASE_ATTR_ID_LIST), SDP_ATTR_SEQUENCE_1(9),      // 3 + 2
+                SDP_ATTR_VALUE_UINT2(LANG_ID_CODE_ENGLISH),                     // 3 byte
+                SDP_ATTR_VALUE_UINT2(LANG_ID_CHAR_ENCODE_UTF8),                 // 3 byte
+                SDP_ATTR_VALUE_UINT2(LANGUAGE_BASE_ID),                         // 3 byte
+            SDP_ATTR_ID(ATTR_ID_BT_PROFILE_DESC_LIST), SDP_ATTR_SEQUENCE_1(8),  // 3 + 2 byte
+                SDP_ATTR_SEQUENCE_1(6),                                         // 2 byte
+                    SDP_ATTR_UUID16(UUID_SERVCLASS_PANU),                       // 3 byte
+                    SDP_ATTR_VALUE_UINT2(0x0100),                               // 3 byte
+            SDP_ATTR_SERVICE_NAME(10),                                          // 5 byte
+                'W', 'I', 'C', 'E', 'D', ' ', 'P', 'A', 'N', 'U',               // 10 byte
+            SDP_ATTR_SERVICE_DESCRIPTION(10),                                   // 5 byte
+                'W', 'I', 'C', 'E', 'D', ' ', 'P', 'A', 'N', 'U',               // 10 byte
+            SDP_ATTR_UINT2(ATTR_ID_SECURITY_DESCRIPTION, 0x0001),               // 6 byte
+#endif
+#ifdef WICED_APP_PANNAP_INCLUDED
+            SDP_ATTR_SEQUENCE_1(126),                                               // 2 byte
+                SDP_ATTR_RECORD_HANDLE(HANDLE_PAN_PANNAP),                          // 8 byte
+                SDP_ATTR_ID(ATTR_ID_SERVICE_CLASS_ID_LIST),                         // 3 byte
+                    SDP_ATTR_SEQUENCE_1(3),                                         // 2 byte
+                        SDP_ATTR_UUID16(UUID_SERVCLASS_NAP),                        // 3 byte
+                SDP_ATTR_ID(ATTR_ID_PROTOCOL_DESC_LIST), SDP_ATTR_SEQUENCE_1(24),   // 3 + 2 byte
+                    SDP_ATTR_SEQUENCE_1(6),                                         // 2 byte
+                        SDP_ATTR_UUID16(UUID_PROTOCOL_L2CAP),                       // 3 byte
+                        SDP_ATTR_VALUE_UINT2(BT_PSM_BNEP),                          // 3 byte
+                    SDP_ATTR_SEQUENCE_1(14),                                        // 2 byte
+                        SDP_ATTR_UUID16(UUID_PROTOCOL_BNEP),                        // 3 byte
+                        SDP_ATTR_VALUE_UINT2(0x0100),                               // 3 byte
+                        SDP_ATTR_SEQUENCE_1(6),                                     // 2 byte
+                            SDP_ATTR_VALUE_UINT2(0x0800),                           // 3 byte
+                            SDP_ATTR_VALUE_UINT2(0x0806),                           // 3 byte
+                SDP_ATTR_ID(ATTR_ID_LANGUAGE_BASE_ATTR_ID_LIST), SDP_ATTR_SEQUENCE_1(9),      // 3 + 2
+                    SDP_ATTR_VALUE_UINT2(LANG_ID_CODE_ENGLISH),                     // 3 byte
+                    SDP_ATTR_VALUE_UINT2(LANG_ID_CHAR_ENCODE_UTF8),                 // 3 byte
+                    SDP_ATTR_VALUE_UINT2(LANGUAGE_BASE_ID),                         // 3 byte
+                SDP_ATTR_ID(ATTR_ID_BT_PROFILE_DESC_LIST), SDP_ATTR_SEQUENCE_1(8),  // 3 + 2 byte
+                    SDP_ATTR_SEQUENCE_1(6),                                         // 2 byte
+                        SDP_ATTR_UUID16(UUID_SERVCLASS_NAP),                        // 3 byte
+                        SDP_ATTR_VALUE_UINT2(0x0100),                               // 3 byte
+                SDP_ATTR_SERVICE_NAME(12),                                          // 5 byte
+                    'W', 'I', 'C', 'E', 'D', ' ', 'P', 'A', 'N', 'N', 'A', 'P',     // 12 byte
+                SDP_ATTR_SERVICE_DESCRIPTION(12),                                   // 5 byte
+                    'W', 'I', 'C', 'E', 'D', ' ', 'P', 'A', 'N', 'N', 'A', 'P',     // 12 byte
+                SDP_ATTR_UINT2(ATTR_ID_SECURITY_DESCRIPTION, 0x0001),               // 6 byte
+                SDP_ATTR_UINT2(ATTR_ID_NET_ACCESS_TYPE, 0x0005),                    // 6 byte
+                SDP_ATTR_UINT4(ATTR_ID_MAX_NET_ACCESS_RATE, 0x001312D0),            // 8 byte
+#endif
     // SDP record Device ID (total = 69 + 2 = 71)
     SDP_ATTR_SEQUENCE_1(69),                                                // 2 bytes, length of the record
         SDP_ATTR_RECORD_HANDLE(HANDLE_PNP),                                 // 8 bytes
@@ -557,7 +477,6 @@ const uint8_t wiced_app_cfg_sdp_record[] =
         SDP_ATTR_UINT2(ATTR_ID_VENDOR_ID_SOURCE, DI_VENDOR_ID_SOURCE_BTSIG),// 6
 };
 
-#ifndef BTSTACK_VER
 /*****************************************************************************
  * wiced_bt  buffer pool configuration
  *
@@ -574,12 +493,14 @@ const wiced_bt_cfg_buf_pool_t wiced_app_cfg_buf_pools[WICED_BT_CFG_NUM_BUF_POOLS
 #ifdef CYW20819A1
     { 360,      9   },      /* Large Buffer Pool  (used for HCI ACL messages) */
     { 1024,     3   },      /* Extra Large Buffer Pool - Used for avdt media packets and miscellaneous (if not needed, set buf_count to 0) */
+#elif defined(WICED_APP_PANU_INCLUDED) || defined(WICED_APP_PANNAP_INCLUDED)
+    { 1707,     9   },      /* Large Buffer Pool  (used for HCI ACL messages) */
+    { 1024,     5   },      /* Extra Large Buffer Pool - Used for avdt media packets and miscellaneous (if not needed, set buf_count to 0) */
 #else
     { 1024,     9   },      /* Large Buffer Pool  (used for HCI ACL messages) */
     { 1024,     5   },      /* Extra Large Buffer Pool - Used for avdt media packets and miscellaneous (if not needed, set buf_count to 0) */
 #endif
 };
-#endif
 
 /**  Audio buffer configuration configuration */
 const wiced_bt_audio_config_buffer_t wiced_bt_audio_buf_config = {
@@ -593,14 +514,13 @@ const wiced_bt_audio_config_buffer_t wiced_bt_audio_buf_config = {
 };
 
 /*
- * wiced_app_cfg_buf_pools_get_num
+ * wiced_app_cfg_get_settings
  */
 const wiced_bt_cfg_settings_t *wiced_app_cfg_get_settings(void)
 {
     return &wiced_bt_cfg_settings;
 }
 
-#ifndef BTSTACK_VER
 /*
  * wiced_app_cfg_buf_pools_get_num
  */
@@ -616,7 +536,6 @@ const wiced_bt_cfg_buf_pool_t *wiced_app_cfg_buf_pools_get(void)
 {
     return wiced_app_cfg_buf_pools;
 }
-#endif
 
 /*
  * wiced_app_cfg_sdp_record_get

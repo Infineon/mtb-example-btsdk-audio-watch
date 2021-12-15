@@ -166,8 +166,12 @@
  *                               Includes
  ******************************************************************************/
 #include <string.h>
+#ifdef WICED_APP_AMS_INCLUDED
 #include <wiced_bt_ams.h>
+#endif
+#ifdef WICED_APP_ANCS_INCLUDED
 #include <wiced_bt_ancs.h>
+#endif
 #include <wiced_bt_avrc.h>
 #include <wiced_bt_avrc_defs.h>
 #ifdef WICED_APP_AUDIO_RC_TG_INCLUDED
@@ -238,6 +242,12 @@
 #define RX_PU   CRX
 #endif
 #endif
+#ifdef WICED_APP_PANU_INCLUDED
+#include "hci_control_panu.h"
+#endif
+#ifdef WICED_APP_PANNAP_INCLUDED
+#include "hci_control_pannap.h"
+#endif
 
 /*****************************************************************************
 **  Constants
@@ -265,6 +275,30 @@ typedef struct
     uint8_t  data[1];
 } hci_control_nvram_chunk_t;
 
+#if BTSTACK_VER >= 0x03000001
+#ifndef PACKED
+#define PACKED
+#endif
+#pragma pack(1)
+
+typedef PACKED struct
+{
+    uint8_t                           br_edr_key_type;
+    wiced_bt_link_key_t               br_edr_key;
+    wiced_bt_dev_le_key_type_t        le_keys_available_mask;
+    wiced_bt_ble_address_type_t       ble_addr_type;
+    wiced_bt_ble_address_type_t       static_addr_type; //55572A1 does not have but 20721 does.
+    wiced_bt_device_address_t         static_addr; //55572A1 does not have but 20721 does.
+    wiced_bt_ble_keys_t               le_keys;
+} wiced_bt_device_sec_keys_t_20721;
+
+typedef PACKED struct
+{
+    wiced_bt_device_address_t   bd_addr;
+    wiced_bt_device_sec_keys_t_20721  key_data;
+} wiced_bt_device_link_keys_t_20721;
+#endif
+
 /******************************************************
  *               Variables Definitions
  ******************************************************/
@@ -283,13 +317,13 @@ hci_control_cb_t  hci_control_cb;
 #endif
 
 wiced_transport_buffer_pool_t* transport_pool;   // Trans pool for sending the RFCOMM data to host
-#if BTSTACK_VER >= 0x01020000
+#if BTSTACK_VER >= 0x03000001
 wiced_bt_pool_t                *p_key_info_pool;  //Pool for storing the  key info
 #else
 wiced_bt_buffer_pool_t*        p_key_info_pool;  //Pool for storing the  key info
 #endif
 
-#if BTSTACK_VER >= 0x01020000
+#if BTSTACK_VER >= 0x03000001
 extern wiced_bt_heap_t *p_default_heap;
 #endif
 
@@ -305,7 +339,7 @@ uint8_t g_wiced_memory_pre_init_num_ble_rl = 16;
  ******************************************************/
 static void hci_control_transport_status( wiced_transport_type_t type );
 static uint32_t hci_control_proc_rx_cmd( uint8_t *p_data, uint32_t length );
-#ifdef NEW_DYNAMIC_MEMORY_INCLUDED
+#if BTSTACK_VER >= 0x03000001
 static void hci_control_transport_tx_cplt_cback(void);
 #else
 static void hci_control_transport_tx_cplt_cback(wiced_transport_buffer_pool_t* p_pool);
@@ -397,7 +431,7 @@ const wiced_transport_cfg_t transport_cfg =
             .baud_rate =  HCI_UART_DEFAULT_BAUD
         },
     },
-#ifdef NEW_DYNAMIC_MEMORY_INCLUDED
+#if BTSTACK_VER >= 0x03000001
     .heap_config =
     {
         .data_heap_size = 1024 * 4 + 1500 * 2,
@@ -467,11 +501,17 @@ void hci_control_post_init(void)
     hci_control_hf_init();
 #endif
 
+#ifdef WICED_APP_PANU_INCLUDED
+    hci_control_panu_init();
+#endif
+#ifdef WICED_APP_PANNAP_INCLUDED
+    hci_control_pannap_init();
+#endif
     // Disable while streaming audio over the uart.
     wiced_bt_dev_register_hci_trace(hci_control_hci_packet_cback);
 
     // Creating a buffer pool for holding the peer devices's key info
-#if BTSTACK_VER >= 0x01020000
+#if BTSTACK_VER >= 0x03000001
     p_key_info_pool = wiced_bt_create_pool("pki", KEY_INFO_POOL_BUFFER_SIZE,
             KEY_INFO_POOL_BUFFER_COUNT, NULL);
 #else
@@ -523,18 +563,8 @@ void hci_control_timeout( uint32_t count )
 void hci_control_init_timer(void)
 {
     /* Start idle timer to enter to sleep */
-    if ( wiced_init_timer( &hci_control_app_timer, hci_control_timeout, 0, WICED_SECONDS_TIMER ) == WICED_SUCCESS )
-    {
-        if ( wiced_start_timer( &hci_control_app_timer, 10 ) !=  WICED_SUCCESS )
-        {
-            WICED_BT_TRACE("idle timer start failure\n");
-            return;
-        }
-    }
-    else
-    {
-        WICED_BT_TRACE("idle timer init fail \n");
-    }
+    wiced_init_timer( &hci_control_app_timer, hci_control_timeout, 0, WICED_SECONDS_TIMER );
+    wiced_start_timer( &hci_control_app_timer, 10 );
 }
 
 /*
@@ -686,6 +716,12 @@ void hci_control_write_eir( void )
     UINT16_TO_STREAM(p, UUID_SERVCLASS_GENERIC_AUDIO);      nb_uuid++;
 #endif
 
+#ifdef WICED_APP_PANU_INCLUDED
+    UINT16_TO_STREAM(p, UUID_SERVCLASS_PANU);               nb_uuid++;
+#endif
+#ifdef WICED_APP_PANNAP_INCLUDED
+    UINT16_TO_STREAM(p, UUID_SERVCLASS_NAP);                nb_uuid++;
+#endif
     /* Now, we can update the UUID Tag's length */
     UINT8_TO_STREAM(p_tmp, (nb_uuid * LEN_UUID_16) + 1);
 
@@ -693,7 +729,7 @@ void hci_control_write_eir( void )
     UINT8_TO_STREAM(p, 0x00);
 
     // print EIR data
-    wiced_bt_trace_array( "EIR :", ( uint8_t* )( pBuf ), MIN( p - ( uint8_t* )pBuf, 100 ) );
+    WICED_BT_TRACE_ARRAY( ( uint8_t* )( pBuf ), MIN( p - ( uint8_t* )pBuf, 100 ), "EIR :" );
     wiced_bt_dev_write_eir( pBuf, (uint16_t)(p - pBuf) );
 
     /* Allocated buffer not anymore needed. Free it */
@@ -712,7 +748,7 @@ void hci_control_hci_packet_cback( wiced_bt_hci_trace_type_t type, uint16_t leng
 {
 #if (WICED_HCI_TRANSPORT == WICED_HCI_TRANSPORT_UART)
     // send the trace
-#ifdef NEW_DYNAMIC_MEMORY_INCLUDED
+#if BTSTACK_VER >= 0x03000001
     wiced_transport_send_hci_trace(type, p_data, length);
 #else
     wiced_transport_send_hci_trace( NULL, type, length, p_data  );
@@ -729,7 +765,7 @@ void hci_control_hci_packet_cback( wiced_bt_hci_trace_type_t type, uint16_t leng
     }
 }
 
-#ifdef WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
+#ifdef WICED_APP_AMS_INCLUDED
 /*
  * Process HCI commands from the MCU
  */
@@ -785,7 +821,7 @@ static void hci_control_ams_handle_command(uint16_t opcode, uint8_t *p_data, uin
 
     hci_control_send_command_status_evt(HCI_CONTROL_AVRC_CONTROLLER_EVENT_COMMAND_STATUS, status);
 }
-#endif /* WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED */
+#endif /* WICED_APP_AMS_INCLUDED */
 
 #ifdef WICED_APP_ANCS_INCLUDED
 /*
@@ -823,7 +859,7 @@ static uint32_t hci_control_proc_rx_cmd( uint8_t *p_buffer, uint32_t length )
     if(( length < 4 ) || (p_data == NULL))
     {
         WICED_BT_TRACE("invalid params\n");
-#ifndef NEW_DYNAMIC_MEMORY_INCLUDED
+#ifndef BTSTACK_VER
         wiced_transport_free_buffer( p_buffer );
 #endif
         return HCI_CONTROL_STATUS_INVALID_ARGS;
@@ -868,7 +904,7 @@ static uint32_t hci_control_proc_rx_cmd( uint8_t *p_buffer, uint32_t length )
         else
 #endif
         {
-#ifdef WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
+#ifdef WICED_APP_AMS_INCLUDED
             if ( wiced_bt_ams_client_connection_check() )
             {
                 hci_control_ams_handle_command( opcode, p_data, payload_len );
@@ -907,6 +943,11 @@ static uint32_t hci_control_proc_rx_cmd( uint8_t *p_buffer, uint32_t length )
         break;
 #endif
 
+#ifdef WICED_APP_PANU_INCLUDED
+    case HCI_CONTROL_GROUP_PANU:
+        hci_control_panu_handle_command ( opcode, p_data, payload_len );
+        break;
+#endif
     case HCI_CONTROL_GROUP_MISC:
         hci_control_misc_handle_command(opcode, p_data, payload_len);
         break;
@@ -917,7 +958,7 @@ static uint32_t hci_control_proc_rx_cmd( uint8_t *p_buffer, uint32_t length )
     }
     if (buffer_processed)
     {
-#ifndef NEW_DYNAMIC_MEMORY_INCLUDED
+#ifndef BTSTACK_VER
         // Freeing the buffer in which data is received
         wiced_transport_free_buffer( p_buffer );
 #endif
@@ -1053,7 +1094,7 @@ void hci_control_handle_set_local_bda( uint8_t *p_bda)
  */
 void hci_control_handle_read_buffer_stats( void )
 {
-#if BTSTACK_VER >= 0x01020000
+#if BTSTACK_VER >= 0x03000001
     /*
      * Get statistics of default heap.
      * TODO: get statistics of stack heap (btu_cb.p_heap)
@@ -1226,7 +1267,7 @@ void hci_control_handle_set_pairability ( uint8_t pairing_allowed )
         if ( pairing_allowed )
         {
             // Check if key buffer pool has buffer available. If not, cannot enable pairing until nvram entries are deleted
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
             if (wiced_bt_get_pool_free_count(p_key_info_pool) <= 0)
 #else
             if (wiced_bt_get_buffer_count(p_key_info_pool) <= 0)
@@ -1304,7 +1345,7 @@ void hci_control_send_device_started_evt( void )
 {
     wiced_transport_send_data( HCI_CONTROL_EVENT_DEVICE_STARTED, NULL, 0 );
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     WICED_BT_TRACE( "maxChannels:%d maxpsm:%d rfcom max links%d, rfcom max ports:%d\n",
             wiced_bt_cfg_settings.p_l2cap_app_cfg->max_app_l2cap_channels,
             wiced_bt_cfg_settings.p_l2cap_app_cfg->max_app_l2cap_psms,
@@ -1568,6 +1609,26 @@ int hci_control_write_nvram( int nvram_id, int data_len, void *p_data, wiced_boo
     hci_control_nvram_chunk_t *p1;
     wiced_result_t            result;
 
+#if BTSTACK_VER >= 0x03000001
+    wiced_bt_device_link_keys_t data;
+    wiced_bt_device_link_keys_t_20721 * p_data_from_host;
+    wiced_bt_device_link_keys_t_20721 device_link_key_data;
+
+    if (from_host)
+    {
+        p_data_from_host = (wiced_bt_device_link_keys_t_20721 *)p_data;
+        memset(&data, 0, sizeof(wiced_bt_device_link_keys_t));
+        memcpy(&data.bd_addr, &p_data_from_host->bd_addr, sizeof(wiced_bt_device_address_t));
+        data.key_data.br_edr_key_type = p_data_from_host->key_data.br_edr_key_type;
+        memcpy(&data.key_data.br_edr_key, &p_data_from_host->key_data.br_edr_key, sizeof(wiced_bt_link_key_t));
+        data.key_data.le_keys_available_mask = p_data_from_host->key_data.le_keys_available_mask;
+        data.key_data.ble_addr_type = p_data_from_host->key_data.ble_addr_type;
+        memcpy(&data.key_data.le_keys, &p_data_from_host->key_data.le_keys, sizeof(wiced_bt_ble_keys_t));
+        data_len = sizeof(wiced_bt_device_link_keys_t);
+        p_data = &data;
+}
+#endif
+
     /* first check if this ID is being reused and release the memory chunk */
     hci_control_delete_nvram( nvram_id, WICED_FALSE );
 
@@ -1607,7 +1668,21 @@ int hci_control_write_nvram( int nvram_id, int data_len, void *p_data, wiced_boo
     {
         *p++ = nvram_id & 0xff;
         *p++ = (nvram_id >> 8) & 0xff;
+#if BTSTACK_VER >= 0x03000001
+        memset(&device_link_key_data, 0, sizeof(wiced_bt_device_link_keys_t_20721));
+        memcpy(&device_link_key_data.bd_addr, &p_keys->bd_addr, sizeof(wiced_bt_device_address_t));
+
+        device_link_key_data.key_data.br_edr_key_type = p_keys->key_data.br_edr_key_type;
+        memcpy(&device_link_key_data.key_data.br_edr_key, &p_keys->key_data.br_edr_key, sizeof(wiced_bt_link_key_t));
+        device_link_key_data.key_data.le_keys_available_mask = p_keys->key_data.le_keys_available_mask;
+        device_link_key_data.key_data.ble_addr_type = p_keys->key_data.ble_addr_type;
+        memcpy(&device_link_key_data.key_data.le_keys, &p_keys->key_data.le_keys, sizeof(wiced_bt_ble_keys_t));
+        memcpy(p, &device_link_key_data, sizeof(wiced_bt_device_link_keys_t_20721));
+        data_len = sizeof(wiced_bt_device_link_keys_t_20721);
+
+#else
         memcpy(p, p_data, data_len);
+#endif
 
         wiced_transport_send_data( HCI_CONTROL_EVENT_NVRAM_DATA, tx_buf, ( int )( data_len + 2 ) );
     }
@@ -1801,7 +1876,7 @@ void hci_control_switch_avrcp_role(uint8_t new_role)
  * hci_control_transport_tx_cplt_cback.
  * This function is called when a Transport Buffer has been sent to the MCU
  */
-#ifdef NEW_DYNAMIC_MEMORY_INCLUDED
+#if BTSTACK_VER >= 0x03000001
 static void hci_control_transport_tx_cplt_cback(void)
 {
     return;

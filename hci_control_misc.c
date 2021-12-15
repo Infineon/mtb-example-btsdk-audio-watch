@@ -124,7 +124,7 @@ void hci_control_misc_handle_get_version( void )
 #ifdef WICED_APP_AUDIO_RC_CT_INCLUDED
     tx_buf[cmd++] = HCI_CONTROL_GROUP_AVRC_CONTROLLER;
 #endif
-#ifdef WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
+#ifdef WICED_APP_AMS_INCLUDED
     tx_buf[cmd++] = HCI_CONTROL_GROUP_AMS;
 #endif
 #ifdef WICED_APP_AUDIO_RC_TG_INCLUDED
@@ -137,6 +137,9 @@ void hci_control_misc_handle_get_version( void )
     tx_buf[cmd++] = HCI_CONTROL_GROUP_HF;
 #endif
 
+#ifdef WICED_APP_PANU_INCLUDED
+    tx_buf[cmd++] = HCI_CONTROL_GROUP_PANU;
+#endif
     wiced_transport_send_data( HCI_CONTROL_MISC_EVENT_VERSION, tx_buf, cmd );
 
     hci_control_audio_support_features_send();

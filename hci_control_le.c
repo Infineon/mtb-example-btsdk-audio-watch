@@ -49,6 +49,9 @@
 #include "hci_control_le.h"
 #include "le_peripheral.h"
 #include "wiced_app_cfg.h"
+#if BTSTACK_VER >= 0x03000001
+#include "cycfg_gap.h"
+#endif
 
 /******************************************************
  *                     Constants
@@ -69,7 +72,7 @@ BD_ADDR  hci_control_le_remote_bdaddr;
 
 hci_control_le_pending_tx_buffer_t hci_control_le_pending_tx_buffer;
 
-#if BTSTACK_VER >= 0x01020000
+#if BTSTACK_VER >= 0x03000001
 wiced_bt_db_hash_t watch_db_hash;
 #endif
 
@@ -78,7 +81,7 @@ wiced_bt_db_hash_t watch_db_hash;
  ******************************************************/
 static wiced_result_t         hci_control_le_connection_up( wiced_bt_gatt_connection_status_t *p_status );
 static wiced_result_t         hci_control_le_connection_down( wiced_bt_gatt_connection_status_t *p_status );
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
 static wiced_bt_gatt_status_t         hci_control_le_write_handler( uint16_t conn_idx, wiced_bt_gatt_write_req_t * p_data );
 #else
 static wiced_bt_gatt_status_t         hci_control_le_write_handler( uint16_t conn_idx, wiced_bt_gatt_write_t * p_data );
@@ -135,7 +138,7 @@ void hci_control_le_enable(const wiced_bt_cfg_settings_t *settings)
     WICED_BT_TRACE( "wiced_bt_gatt_register status %d\n", gatt_status );
 
     /*  GATT DB Initialization */
-#if BTSTACK_VER >= 0x01020000
+#if BTSTACK_VER >= 0x03000001
     gatt_status = wiced_bt_gatt_db_init(gatt_database, gatt_database_len,
             watch_db_hash);
 #else
@@ -155,6 +158,9 @@ void hci_control_le_enable(const wiced_bt_cfg_settings_t *settings)
  */
 static void hci_control_le_set_advertisement_data(const wiced_bt_cfg_settings_t *settings)
 {
+#if BTSTACK_VER >= 0x03000001
+    wiced_bt_ble_set_raw_advertisement_data(CY_BT_ADV_PACKET_DATA_SIZE, cy_bt_adv_packet_data);
+#else
     wiced_bt_ble_advert_elem_t adv_elem[3];
     uint8_t num_elem = 0;
     uint8_t flag = BTM_BLE_GENERAL_DISCOVERABLE_FLAG | BTM_BLE_BREDR_NOT_SUPPORTED;
@@ -170,6 +176,7 @@ static void hci_control_le_set_advertisement_data(const wiced_bt_cfg_settings_t 
     num_elem++;
 
     wiced_bt_ble_set_raw_advertisement_data(num_elem, adv_elem);
+#endif
 }
 /*
  * Process advertisement packet received
@@ -187,7 +194,7 @@ void hci_control_le_scan_result_cback( wiced_bt_ble_scan_results_t *p_scan_resul
     }
 }
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
 /*
  * Helper function for mapping between conn_id and conn_idx
  */
@@ -230,7 +237,7 @@ uint16_t hci_control_le_get_conn_idx_from_event(wiced_bt_gatt_evt_t event, wiced
     switch( event )
     {
     case GATT_CONNECTION_STATUS_EVT:
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
         conn_idx = hci_control_le_get_conn_idx(p_data->connection_status.conn_id);
 #else
         conn_idx = p_data->connection_status.conn_id;
@@ -238,7 +245,7 @@ uint16_t hci_control_le_get_conn_idx_from_event(wiced_bt_gatt_evt_t event, wiced
         break;
 
     case GATT_OPERATION_CPLT_EVT:
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
         conn_idx = hci_control_le_get_conn_idx(p_data->operation_complete.conn_id);
 #else
         conn_idx = p_data->operation_complete.conn_id;
@@ -246,7 +253,7 @@ uint16_t hci_control_le_get_conn_idx_from_event(wiced_bt_gatt_evt_t event, wiced
         break;
 
     case GATT_DISCOVERY_RESULT_EVT:
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
         conn_idx = hci_control_le_get_conn_idx(p_data->discovery_result.conn_id);
 #else
         conn_idx = p_data->discovery_result.conn_id;
@@ -254,7 +261,7 @@ uint16_t hci_control_le_get_conn_idx_from_event(wiced_bt_gatt_evt_t event, wiced
         break;
 
     case GATT_DISCOVERY_CPLT_EVT:
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
         conn_idx = hci_control_le_get_conn_idx(p_data->discovery_complete.conn_id);
 #else
         conn_idx = p_data->discovery_complete.conn_id;
@@ -262,7 +269,7 @@ uint16_t hci_control_le_get_conn_idx_from_event(wiced_bt_gatt_evt_t event, wiced
         break;
 
     case GATT_ATTRIBUTE_REQUEST_EVT:
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
         conn_idx = hci_control_le_get_conn_idx(p_data->attribute_request.conn_id);
 #else
         conn_idx = p_data->attribute_request.conn_id;
@@ -270,7 +277,7 @@ uint16_t hci_control_le_get_conn_idx_from_event(wiced_bt_gatt_evt_t event, wiced
         break;
 
     case GATT_CONGESTION_EVT:
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
         conn_idx = hci_control_le_get_conn_idx(p_data->congestion.conn_id);
 #else
         conn_idx = p_data->congestion.conn_id;
@@ -295,7 +302,7 @@ uint16_t hci_control_le_get_conn_idx_from_event(wiced_bt_gatt_evt_t event, wiced
  */
 wiced_result_t hci_control_le_connection_up( wiced_bt_gatt_connection_status_t *p_status )
 {
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     uint32_t       conn_idx = hci_control_le_allocate_conn_cb();
 #else
     uint32_t       conn_idx = p_status->conn_id;
@@ -314,7 +321,7 @@ wiced_result_t hci_control_le_connection_up( wiced_bt_gatt_connection_status_t *
     memcpy( le_control_cb.conn[conn_idx].bd_addr, p_status->bd_addr, BD_ADDR_LEN );
     le_control_cb.conn[conn_idx].state      = LE_CONTROL_STATE_IDLE;
     le_control_cb.conn[conn_idx].conn_id    = p_status->conn_id;
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     le_control_cb.conn[conn_idx].peer_mtu   = GATT_BLE_DEFAULT_MTU_SIZE;
 #else
     le_control_cb.conn[conn_idx].peer_mtu   = GATT_DEF_BLE_MTU_SIZE;
@@ -359,7 +366,7 @@ wiced_result_t hci_control_le_connection_up( wiced_bt_gatt_connection_status_t *
 */
 wiced_result_t hci_control_le_connection_down( wiced_bt_gatt_connection_status_t *p_status )
 {
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     uint16_t          conn_idx = hci_control_le_get_conn_idx(p_status->conn_id);
 #else
     uint16_t          conn_idx = p_status->conn_id;
@@ -370,23 +377,26 @@ wiced_result_t hci_control_le_connection_down( wiced_bt_gatt_connection_status_t
     /* Stop le connection timer*/
     wiced_stop_timer( &hci_control_le_connect_timer );
 
-    le_control_cb.conn[conn_idx].state   = LE_CONTROL_STATE_IDLE;
-    le_control_cb.conn[conn_idx].conn_id = 0;
-
-    if ( ( conn_idx == hci_control_le_pending_tx_buffer.tx_buf_conn_idx ) &&
-                    ( hci_control_le_pending_tx_buffer.tx_buf_saved ) )
+    if ( conn_idx < (LE_CONTROL_MAX_CONNECTIONS + 1) )
     {
-        hci_control_le_pending_tx_buffer.tx_buf_saved = WICED_FALSE;
-    }
+        le_control_cb.conn[conn_idx].state   = LE_CONTROL_STATE_IDLE;
+        le_control_cb.conn[conn_idx].conn_id = 0;
+
+        if ( ( conn_idx == hci_control_le_pending_tx_buffer.tx_buf_conn_idx ) &&
+                ( hci_control_le_pending_tx_buffer.tx_buf_saved ) )
+        {
+            hci_control_le_pending_tx_buffer.tx_buf_saved = WICED_FALSE;
+        }
 
 #ifdef WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
-    if (le_control_cb.conn[conn_idx].role != HCI_ROLE_CENTRAL)
-    {
-        le_peripheral_connection_down(p_status);
-    }
+        if (le_control_cb.conn[conn_idx].role != HCI_ROLE_CENTRAL)
+        {
+            le_peripheral_connection_down(p_status);
+        }
 #endif
 
-    hci_control_le_send_disconnect_evt( p_status->reason, conn_idx );
+        hci_control_le_send_disconnect_evt( p_status->reason, conn_idx );
+    }
 
     return ( WICED_SUCCESS );
 }
@@ -412,7 +422,7 @@ wiced_result_t hci_control_le_conn_status_callback( wiced_bt_gatt_connection_sta
  */
 wiced_result_t hci_control_le_gatt_operation_comp_cb( wiced_bt_gatt_operation_complete_t *p_complete )
 {
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     uint16_t conn_idx = hci_control_le_get_conn_idx(p_complete->conn_id);
 #else
     uint16_t conn_idx = p_complete->conn_id;
@@ -424,7 +434,7 @@ wiced_result_t hci_control_le_gatt_operation_comp_cb( wiced_bt_gatt_operation_co
         WICED_BT_TRACE( "!!! Disc compl conn_idx:%d state:%d\n", conn_idx, le_control_cb.conn[conn_idx].state );
         break;
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     case GATTC_OPTYPE_READ_HANDLE:
 #else
     case GATTC_OPTYPE_READ:
@@ -442,7 +452,7 @@ wiced_result_t hci_control_le_gatt_operation_comp_cb( wiced_bt_gatt_operation_co
         }
         break;
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     case GATTC_OPTYPE_WRITE_WITH_RSP:
     case GATTC_OPTYPE_WRITE_NO_RSP:
     case GATTC_OPTYPE_EXECUTE_WRITE:
@@ -459,7 +469,7 @@ wiced_result_t hci_control_le_gatt_operation_comp_cb( wiced_bt_gatt_operation_co
         }
         break;
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     case GATTC_OPTYPE_CONFIG_MTU:
 #else
     case GATTC_OPTYPE_CONFIG:
@@ -491,7 +501,7 @@ wiced_result_t hci_control_le_gatt_operation_comp_cb( wiced_bt_gatt_operation_co
  */
 wiced_result_t hci_control_le_gatt_disc_result_cb( wiced_bt_gatt_discovery_result_t *p_result )
 {
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     uint16_t conn_idx = hci_control_le_get_conn_idx(p_result->conn_id);
 #else
     uint16_t conn_idx = p_result->conn_id;
@@ -574,7 +584,7 @@ wiced_result_t hci_control_le_gatt_disc_result_cb( wiced_bt_gatt_discovery_resul
  */
 wiced_result_t hci_control_le_gatt_disc_comp_cb( wiced_bt_gatt_discovery_complete_t *p_data )
 {
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     uint16_t conn_idx = hci_control_le_get_conn_idx(p_data->conn_id);
 #else
     uint16_t conn_idx = p_data->conn_id;
@@ -587,7 +597,7 @@ wiced_result_t hci_control_le_gatt_disc_comp_cb( wiced_bt_gatt_discovery_complet
 }
 
 /* Get a Value */
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
 wiced_bt_gatt_status_t hci_control_le_get_value( uint16_t attr_handle, uint16_t conn_idx,
         wiced_bt_gatt_opcode_t opcode, wiced_bt_gatt_read_t *p_read_data, uint16_t len_requested)
 #else
@@ -597,7 +607,7 @@ wiced_bt_gatt_status_t hci_control_le_get_value( uint16_t attr_handle, uint16_t 
     int                    i;
     wiced_bool_t           is_handle_in_table = WICED_FALSE;
     wiced_bt_gatt_status_t res = WICED_BT_GATT_INVALID_HANDLE;
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     uint16_t conn_id = hci_control_le_get_conn_id(conn_idx);
 #endif
 
@@ -612,7 +622,7 @@ wiced_bt_gatt_status_t hci_control_le_get_value( uint16_t attr_handle, uint16_t 
             if (app_gatt_db_ext_attr_tbl[i].cur_len <= len_requested)
             {
                 // Value fits within the supplied buffer; copy over the value
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
                 int attr_len_to_copy = app_gatt_db_ext_attr_tbl[i].cur_len;
                 if (attr_len_to_copy != 0)
                 {
@@ -650,7 +660,7 @@ wiced_bt_gatt_status_t hci_control_le_get_value( uint16_t attr_handle, uint16_t 
         // res = WICED_BT_GATT_PENDING;
     }
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     if (res != WICED_BT_GATT_SUCCESS)
     {
         wiced_bt_gatt_server_send_error_rsp(conn_id, opcode, p_read_data->handle,
@@ -707,7 +717,7 @@ wiced_bt_gatt_status_t hci_control_le_set_value( uint16_t attr_handle, uint16_t 
  * return error if something not appropriate, or return PENDING and send Read Response
  * when data is ready.
  */
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
 wiced_bt_gatt_status_t hci_control_le_read_handler( uint16_t conn_idx, wiced_bt_gatt_opcode_t opcode,
         wiced_bt_gatt_read_t *p_req, uint16_t len_requested)
 {
@@ -737,7 +747,7 @@ void hci_control_le_connect_timeout( uint32_t count )
  * This function is called when peer issues a Write request to access characteristics values
  * in the GATT database
  */
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
 wiced_bt_gatt_status_t hci_control_le_write_handler( uint16_t conn_idx, wiced_bt_gatt_write_req_t * p_req )
 #else
 wiced_bt_gatt_status_t hci_control_le_write_handler( uint16_t conn_idx, wiced_bt_gatt_write_t *p_req )
@@ -768,7 +778,7 @@ wiced_result_t hci_control_le_mtu_handler( uint16_t conn_idx, uint16_t mtu )
 {
     le_control_cb.conn[conn_idx].peer_mtu   = mtu;
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     wiced_bt_gatt_server_send_mtu_rsp(hci_control_le_get_conn_id(conn_idx),
             mtu, wiced_bt_cfg_settings.p_ble_cfg->ble_max_rx_pdu_size);
 #endif
@@ -798,7 +808,7 @@ wiced_bt_gatt_status_t hci_control_le_gatt_req_cb( wiced_bt_gatt_attribute_reque
 {
     wiced_bt_gatt_status_t result  = WICED_BT_GATT_SUCCESS;
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     uint16_t conn_idx = hci_control_le_get_conn_idx(p_req->conn_id);
 
     WICED_BT_TRACE( "GATT request conn_idx:%d type:%d\n", conn_idx, p_req->opcode );
@@ -932,7 +942,7 @@ wiced_bt_gatt_status_t hci_control_le_gatt_callback( wiced_bt_gatt_evt_t event, 
         result = hci_control_le_gatt_congestion_callback( &p_data->congestion );
         break;
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     case GATT_GET_RESPONSE_BUFFER_EVT:
         p_data->buffer_request.buffer.p_app_rsp_buffer = wiced_bt_get_buffer(p_data->buffer_request.len_requested);
         p_data->buffer_request.buffer.p_app_ctxt = wiced_bt_free_buffer;
@@ -963,7 +973,7 @@ wiced_bt_gatt_status_t hci_control_le_gatt_callback( wiced_bt_gatt_evt_t event, 
 /*
  * This function sends write to the peer GATT server
  * */
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
 wiced_bt_gatt_status_t hci_control_le_send_write( uint8_t conn_idx, uint16_t attr_handle, uint8_t *p_data, uint16_t len, wiced_bt_gatt_opcode_t type )
 {
     wiced_bt_gatt_status_t status = WICED_BT_GATT_INSUF_RESOURCE;
@@ -984,7 +994,7 @@ wiced_bt_gatt_status_t hci_control_le_send_write( uint8_t conn_idx, uint16_t att
         // Register with the server to receive notification
         status = wiced_bt_gatt_client_send_write ( conn_id, type, &hdr, p_write, NULL);
 
-        WICED_BT_TRACE( "wiced_bt_gatt_client_send_write status:%d", status );
+        WICED_BT_TRACE( "wiced_bt_gatt_client_send_write status:%d\n", status );
 
         wiced_bt_free_buffer( p_write );
     }
@@ -1039,7 +1049,7 @@ wiced_bt_gatt_status_t hci_control_le_gatt_congestion_callback( wiced_bt_gatt_co
         // saved tx buffer can be write command, or notification.
         if ( hci_control_le_pending_tx_buffer.tx_buf_type == HCI_CONTROL_GATT_COMMAND_WRITE_COMMAND )
         {
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
             ret_val = hci_control_le_send_write( hci_control_le_pending_tx_buffer.tx_buf_conn_idx, hci_control_le_pending_tx_buffer.tx_buf_handle,
                             hci_control_le_pending_tx_buffer.tx_buf_data, hci_control_le_pending_tx_buffer.tx_buf_len, GATT_CMD_WRITE );
 #else
@@ -1053,7 +1063,7 @@ wiced_bt_gatt_status_t hci_control_le_gatt_congestion_callback( wiced_bt_gatt_co
         }
         else if ( hci_control_le_pending_tx_buffer.tx_buf_type == HCI_CONTROL_GATT_COMMAND_NOTIFY )
         {
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
             conn_id = hci_control_le_get_conn_id(hci_control_le_pending_tx_buffer.tx_buf_conn_idx);
             ret_val = wiced_bt_gatt_server_send_notification( conn_id, hci_control_le_pending_tx_buffer.tx_buf_handle,
                             hci_control_le_pending_tx_buffer.tx_buf_len, hci_control_le_pending_tx_buffer.tx_buf_data,
@@ -1167,7 +1177,7 @@ void hci_control_le_indication_handler( uint16_t conn_idx, uint16_t handle, uint
 
     hci_control_le_process_data( HCI_CONTROL_GATT_EVENT_INDICATION, conn_idx, handle, p_data, len );
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     conn_id = hci_control_le_get_conn_id(conn_idx);
     wiced_bt_gatt_client_send_indication_confirm( conn_id, handle );
 #else
@@ -1349,7 +1359,7 @@ void hci_control_le_handle_cancel_connect_cmd( uint8_t addr_type, BD_ADDR addr )
  */
 void hci_control_le_handle_disconnect_cmd( uint16_t conn_idx )
 {
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     uint16_t conn_id = hci_control_le_get_conn_id(conn_idx);
 #else
     uint16_t conn_id = conn_idx;
@@ -1359,7 +1369,7 @@ void hci_control_le_handle_disconnect_cmd( uint16_t conn_idx )
         WICED_BT_TRACE( "illegal conn_idx:%04x\n", conn_idx );
         hci_control_send_command_status_evt( HCI_CONTROL_GATT_EVENT_COMMAND_STATUS, HCI_CONTROL_STATUS_BAD_HANDLE );
     }
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     else if ( le_control_cb.conn[conn_idx].conn_id == 0 )
 #else
     else if ( le_control_cb.conn[conn_idx].conn_id != conn_id )
@@ -1384,7 +1394,7 @@ void hci_control_le_handle_service_discovery( uint16_t conn_idx, uint16_t s_hand
 {
     wiced_bt_gatt_discovery_param_t params;
     wiced_bt_gatt_status_t          rc;
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     uint16_t conn_id = hci_control_le_get_conn_id(conn_idx);
 #else
     uint16_t conn_id = conn_idx;
@@ -1421,7 +1431,7 @@ void hci_control_le_handle_service_discovery( uint16_t conn_idx, uint16_t s_hand
         params.e_handle = e_handle;
 
         WICED_BT_TRACE( "discover services conn_idx:%d %04x-%04x\n", conn_idx, s_handle, e_handle );
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
         if ( ( rc = wiced_bt_gatt_client_send_discover( conn_id, GATT_DISCOVER_SERVICES_ALL, &params ) ) == WICED_BT_GATT_SUCCESS )
 #else
         if ( ( rc = wiced_bt_gatt_send_discover( conn_id, GATT_DISCOVER_SERVICES_ALL, &params ) ) == WICED_BT_GATT_SUCCESS )
@@ -1445,7 +1455,7 @@ void hci_control_le_handle_characteristic_discovery( uint16_t conn_idx, uint16_t
 {
     wiced_bt_gatt_discovery_param_t params;
     wiced_bt_gatt_status_t          rc;
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     uint16_t conn_id = hci_control_le_get_conn_id(conn_idx);
 #else
     uint16_t conn_id = conn_idx;
@@ -1481,7 +1491,7 @@ void hci_control_le_handle_characteristic_discovery( uint16_t conn_idx, uint16_t
         params.s_handle = s_handle;
         params.e_handle = e_handle;
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
         if ( ( rc = wiced_bt_gatt_client_send_discover( conn_id, GATT_DISCOVER_CHARACTERISTICS, &params ) ) == WICED_BT_GATT_SUCCESS )
 #else
         if ( ( rc = wiced_bt_gatt_send_discover( conn_id, GATT_DISCOVER_CHARACTERISTICS, &params ) ) == WICED_BT_GATT_SUCCESS )
@@ -1505,7 +1515,7 @@ void hci_control_le_handle_descriptor_discovery( uint16_t conn_idx, uint16_t s_h
 {
     wiced_bt_gatt_discovery_param_t params;
     wiced_bt_gatt_status_t          rc;
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     uint16_t conn_id = hci_control_le_get_conn_id(conn_idx);
 #else
     uint16_t conn_id = conn_idx;
@@ -1540,7 +1550,7 @@ void hci_control_le_handle_descriptor_discovery( uint16_t conn_idx, uint16_t s_h
         params.s_handle = s_handle;
         params.e_handle = e_handle;
 
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
         if ( ( rc = wiced_bt_gatt_client_send_discover( conn_id, GATT_DISCOVER_CHARACTERISTIC_DESCRIPTORS, &params ) ) == WICED_BT_GATT_SUCCESS )
 #else
         if ( ( rc = wiced_bt_gatt_send_discover( conn_id, GATT_DISCOVER_CHARACTERISTIC_DESCRIPTORS, &params ) ) == WICED_BT_GATT_SUCCESS )
@@ -1560,7 +1570,7 @@ void hci_control_le_handle_descriptor_discovery( uint16_t conn_idx, uint16_t s_h
 
 void hci_control_le_handle_read_req( uint16_t conn_idx, uint16_t handle )
 {
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     uint16_t conn_id = hci_control_le_get_conn_id(conn_idx);
 #else
     uint16_t conn_id = conn_idx;
@@ -1592,7 +1602,7 @@ void hci_control_le_handle_read_req( uint16_t conn_idx, uint16_t handle )
     else
     {
         wiced_bt_gatt_status_t status;
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
         status = wiced_bt_gatt_client_send_read_handle( conn_id, handle, 0, NULL, 0, GATT_AUTH_REQ_NONE);
 
 #else /* !BTSTACK_VER */
@@ -1624,7 +1634,7 @@ void hci_control_le_handle_read_req( uint16_t conn_idx, uint16_t handle )
 void hci_control_le_handle_read_rsp( uint16_t conn_idx, uint16_t handle, uint8_t *p_data, uint16_t len )
 {
     wiced_bt_gatt_status_t status;
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     uint16_t conn_id = hci_control_le_get_conn_id(conn_idx);
 #else
     uint16_t conn_id = conn_idx;
@@ -1645,7 +1655,7 @@ void hci_control_le_handle_read_rsp( uint16_t conn_idx, uint16_t handle, uint8_t
 #endif
     else
     {
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
         status = wiced_bt_gatt_server_send_read_handle_rsp( conn_id, GATT_RSP_READ, len, p_data, NULL );
 #else
         status = wiced_bt_gatt_send_response( WICED_BT_GATT_SUCCESS, conn_id, handle, len, 0, p_data );
@@ -1670,7 +1680,7 @@ wiced_bool_t hci_control_le_handle_write_cmd( uint16_t conn_idx, uint16_t handle
         WICED_BT_TRACE( "illegal conn_idx:%04x\n", conn_idx );
         hci_control_send_command_status_evt( HCI_CONTROL_GATT_EVENT_COMMAND_STATUS, HCI_CONTROL_STATUS_BAD_HANDLE );
     }
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     else if ( ( le_control_cb.conn[conn_idx].state != LE_CONTROL_STATE_IDLE ) )
 #else
     else if ( ( le_control_cb.conn[conn_idx].conn_id != conn_idx ) || ( le_control_cb.conn[conn_idx].state != LE_CONTROL_STATE_IDLE ) )
@@ -1714,7 +1724,7 @@ wiced_bool_t hci_control_le_handle_write_cmd( uint16_t conn_idx, uint16_t handle
         // If there are tx buffers send Write Command
         if ( wiced_bt_ble_get_available_tx_buffers( ) > 1 )
         {
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
             status = hci_control_le_send_write( conn_idx, handle, p_data, len, GATT_CMD_WRITE );
 #else
             status = hci_control_le_send_write( conn_idx, handle, p_data, len, GATT_WRITE_NO_RSP );
@@ -1742,7 +1752,7 @@ wiced_bool_t hci_control_le_handle_write_cmd( uint16_t conn_idx, uint16_t handle
 void hci_control_le_handle_write_req( uint16_t conn_idx, uint16_t handle, uint8_t *p_data, uint16_t len )
 {
     wiced_bt_gatt_status_t status;
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     uint8_t *p_write_req;
     wiced_bt_gatt_write_hdr_t hdr;
     uint16_t conn_id = hci_control_le_get_conn_id(conn_idx);
@@ -1780,7 +1790,7 @@ void hci_control_le_handle_write_req( uint16_t conn_idx, uint16_t handle, uint8_
         hci_control_send_command_status_evt( HCI_CONTROL_GATT_EVENT_COMMAND_STATUS, HCI_CONTROL_STATUS_SUCCESS );
 
         // perform write procedure
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
         p_write_req = (uint8_t *)wiced_bt_get_buffer(len);
 
         WICED_BT_TRACE( "write_cmd %d %x\n", conn_idx, p_write_req );
@@ -2052,7 +2062,7 @@ void hci_control_le_send_scan_state_event( uint8_t status )
 void hci_control_le_send_advertisement_report( wiced_bt_ble_scan_results_t *p_scan_result, uint8_t *p_adv_data )
 {
     int       i;
-    uint8_t   tx_buf[70];
+    uint8_t   tx_buf[300];
     uint8_t   *p = tx_buf;
     uint8_t   len;
 
@@ -2062,13 +2072,37 @@ void hci_control_le_send_advertisement_report( wiced_bt_ble_scan_results_t *p_sc
         *p++ = p_scan_result->remote_bd_addr[5 - i];
     *p++ = p_scan_result->rssi;
 
+#if BTSTACK_VER >= 0x03000001
+    // new BTSTACK will send pointer to start of ADV data, and length is the first byte.
+    if (( p_adv_data != NULL ) && ( len = *p_adv_data++ ) != 0 )
+    {
+        if ( p + len + 1 > tx_buf + 255 )
+        {
+            WICED_BT_TRACE("Bad data\n");
+        }
+        else
+        {
+            for( i = 0; i < len; i++ )
+            {
+                *p++ = *p_adv_data++;
+            }
+        }
+    }
+#else
     // currently callback does not pass the data of the adv data, need to go through the data
     // zero len in the LTV means that there is no more data
-    while ( ( len = *p_adv_data ) != 0 )
+    while ( ( p_adv_data != NULL ) && ( len = *p_adv_data ) != 0 )
     {
+        // In the HCI event all parameters should fit into 255 bytes
+        if ( p + len + 1 > tx_buf + 255 )
+        {
+            WICED_BT_TRACE("Bad data\n");
+            break;
+        }
         for ( i = 0; i < len + 1; i++ )
             *p++ = *p_adv_data++;
     }
+#endif
     wiced_transport_send_data ( HCI_CONTROL_LE_EVENT_ADVERTISEMENT_REPORT, tx_buf, ( int )( p - tx_buf ) );
 }
 

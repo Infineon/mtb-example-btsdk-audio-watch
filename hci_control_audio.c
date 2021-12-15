@@ -58,7 +58,7 @@
 #endif
 #include "wiced_bt_a2d.h"
 #include "wiced_transport.h"
-#if ( defined(CYW20706A2) || defined(CYW20719B1) || defined(CYW20719B2) || defined(CYW43012C0) || defined(CYW20721B1) || defined(CYW20721B2) || defined(CYW20819A1) || BTSTACK_VER >= 0x01020000 )
+#if ( defined(CYW20706A2) || defined(CYW20719B1) || defined(CYW20719B2) || defined(CYW43012C0) || defined(CYW20721B1) || defined(CYW20721B2) || defined(CYW20819A1) || BTSTACK_VER >= 0x03000001 )
 #include "wiced_bt_event.h"
 #endif
 #ifdef CYW9BT_AUDIO
@@ -141,9 +141,7 @@ typedef struct
     wiced_bt_avdt_cfg_t  *avdt_sep_config;
     tAV_SEP_INFO        av_sep_info[sizeof(supported_av_codecs)];
 
-#ifdef MP3_DECODER_INCLUDED
     uint8_t             audio_format;
-#endif // MP3_DECODER_INCLUDED
 } tAV_APP_CB;
 
 /* A2DP module control block */
@@ -352,13 +350,17 @@ uint8_t hci_control_audio_handle_command( uint16_t cmd_opcode, uint8_t* p_data, 
         }
         wiced_app_event_serialize(&hci_control_audio_mp3_data_decode, NULL);
         break;
+#endif // MP3_DECODER_INCLUDED
 
     /* Audio file format */
     case HCI_CONTROL_AUDIO_DATA_FORMAT:
         {
             /* Save the audio format. */
             av_app_cb.audio_format = p_data[0];
-
+            /* Update the audio route */
+            av_app_cb.audio_route = p_data[1];
+            WICED_BT_TRACE("DBG: audio route is %d\n", av_app_cb.audio_route);
+#ifdef MP3_DECODER_INCLUDED
             if (av_app_cb.audio_format == AUDIO_SRC_AUDIO_DATA_FORMAT_MP3)
             {
                 WICED_BT_TRACE("DBG: audio data is MP3 format\n");
@@ -381,9 +383,10 @@ uint8_t hci_control_audio_handle_command( uint16_t cmd_opcode, uint8_t* p_data, 
                 /* De-register the audio frame request handler. */
                 wiced_audio_samples_route_init(NULL);
             }
+#endif // MP3_DECODER_INCLUDED
         }
         break;
-#endif // MP3_DECODER_INCLUDED
+
     default:
         status = HCI_CONTROL_STATUS_UNKNOWN_COMMAND;
         break;
@@ -2316,7 +2319,7 @@ void avdt_init( )
     av_app_cb.avdt_register.sig_tout  = AV_SIG_TOUT;        /* AV_SIG_TOUT = 4 */
     av_app_cb.avdt_register.idle_tout = AV_IDLE_TOUT;       /* AV_IDLE_TOUT = 10 */
     /* Security mask, AV_SEC_MASK = none */
-#if BTSTACK_VER > 0x01020000
+#if BTSTACK_VER >= 0x03000001
     av_app_cb.avdt_register.sec_mask  = wiced_bt_cfg_settings.security_required;
 #else
     av_app_cb.avdt_register.sec_mask  = wiced_bt_cfg_settings.security_requirement_mask;
@@ -2329,7 +2332,7 @@ void avdt_init( )
     av_app_cb.stream_cb.cfg.num_protect = 0;
     av_app_cb.stream_cb.tsep            = AVDT_TSEP_SRC;          /* AVDT_TSEP_SRC: Source SEP, AVDT_TSEP_SNK : : Sink SEP */
     av_app_cb.stream_cb.nsc_mask        = AVDT_NSC_RECONFIG;      /* Reconfigure command not supported */
-#if BTSTACK_VER >= 0x01020000
+#if BTSTACK_VER >= 0x03000001
     av_app_cb.stream_cb.p_avdt_ctrl_cback    = av_app_proc_stream_evt; /* AVDT event callback */
 #else
     av_app_cb.stream_cb.p_ctrl_cback    = av_app_proc_stream_evt; /* AVDT event callback */
