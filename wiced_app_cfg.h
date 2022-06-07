@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -61,10 +61,6 @@
 
 extern const wiced_bt_cfg_settings_t wiced_bt_cfg_settings;
 
-#ifndef BTSTACK_VER
-//const wiced_bt_cfg_buf_pool_t *wiced_app_cfg_buf_pools_get(void);
-extern const wiced_bt_cfg_buf_pool_t wiced_app_cfg_buf_pools[];
-#endif
 extern const wiced_bt_audio_config_buffer_t wiced_bt_audio_buf_config;
 extern int wiced_app_cfg_get_num_buf_pools(void);
 

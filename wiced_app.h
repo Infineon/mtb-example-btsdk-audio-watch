@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -36,8 +36,41 @@
 #define _WICED_APP_H_
 
 #include "wiced_bt_trace.h"
+#include "wiced_transport.h"
+
+/*****************************************************************************
+**  Structures
+*****************************************************************************/
+typedef struct
+{
+    void    *p_next;
+    uint16_t nvram_id;
+    uint8_t  chunk_len;
+    uint8_t  data[1];
+} hci_control_nvram_chunk_t;
 
 #define WICED_PIN_CODE_LEN                  4
+
+typedef struct
+{
+    wiced_bt_device_address_t   identity_addr;
+    wiced_bt_device_address_t   random_addr;
+} app_identity_random_mapping_t;
+
+#define ADDR_MAPPING_MAX_COUNT 15 //as same as APP_CFG_ULP_MAX_CONNECTION
+
+/******************************************************
+ *               extern function/variables
+ ******************************************************/
+app_identity_random_mapping_t * get_addr_mapping_by_random_addr(wiced_bt_device_address_t random_addr);
+app_identity_random_mapping_t * get_addr_mapping_by_identity_addr(wiced_bt_device_address_t identity_addr);
+app_identity_random_mapping_t * get_empty_addr_mapping();
+void hci_control_transport_status( wiced_transport_type_t type );
+uint32_t hci_control_proc_rx_cmd( uint8_t *p_data, uint32_t length );
+wiced_result_t btm_event_handler(wiced_bt_management_evt_t event, wiced_bt_management_evt_data_t *p_event_data);
+
+extern hci_control_nvram_chunk_t *p_nvram_first;
 extern const uint8_t pincode[WICED_PIN_CODE_LEN];
+
 
 #endif /* _WICED_APP_H_ */

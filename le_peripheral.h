@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -68,15 +68,17 @@ typedef struct
     wiced_bool_t hid_report_client_configuration;
     wiced_bool_t hid_empty_report_pending;
     wiced_timer_t timer;
+    uint8_t timer_param;
     wiced_bool_t encrypted;
 } watch_app_state_t;
 
-extern watch_app_state_t watch_app_state;
+// extern watch_app_state_t watch_app_state[MAX_PHONE_CONNECTIONS];
 
-void watch_util_send_discover(uint16_t conn_id, wiced_bt_gatt_discovery_type_t type, uint16_t uuid,
-                              uint16_t s_handle, uint16_t e_handle);
-void watch_util_send_read_by_handle(uint16_t conn_id, uint16_t handle);
-wiced_bool_t watch_util_send_read_by_type(uint16_t conn_id, uint16_t s_handle, uint16_t e_handle, uint16_t uuid);
+void         watch_util_send_discover(uint16_t conn_id, wiced_bt_gatt_discovery_type_t type, uint16_t uuid, uint16_t s_handle, uint16_t e_handle);
+void         watch_process_read_rsp    (wiced_bt_gatt_operation_complete_t *p_data);
+void         watch_process_write_rsp   (wiced_bt_gatt_operation_complete_t *p_data);
+void         watch_notification_handler(wiced_bt_gatt_operation_complete_t *p_data);
+void         watch_indication_handler  (wiced_bt_gatt_operation_complete_t *p_data);
 
 void gatt_client_indication_handler(wiced_bt_gatt_operation_complete_t *p_data);
 void time_client_indication_handler(wiced_bt_gatt_operation_complete_t *p_data);
@@ -87,9 +89,10 @@ void le_peripheral_connection_up(wiced_bt_gatt_connection_status_t *p_conn_statu
 void le_peripheral_connection_down(wiced_bt_gatt_connection_status_t *p_conn_status);
 void le_peripheral_encryption_status_changed(wiced_bt_dev_encryption_status_t *p_status);
 
-wiced_bt_gatt_status_t le_peripheral_gatt_operation_complete(wiced_bt_gatt_operation_complete_t *p_data);
 wiced_bt_gatt_status_t le_peripheral_gatt_discovery_result  (wiced_bt_gatt_discovery_result_t *p_data);
 wiced_bt_gatt_status_t le_peripheral_gatt_discovery_complete(wiced_bt_gatt_discovery_complete_t *p_data);
 wiced_bt_gatt_status_t le_peripheral_gatt_req_cb(wiced_bt_gatt_attribute_request_t *p_req);
+
+
 
 #endif

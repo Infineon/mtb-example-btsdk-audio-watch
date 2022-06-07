@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -36,11 +36,17 @@
  * This file implement BTLE application controlled over UART.
  * The GATT database is defined in this file and is not changed by the MCU.
  */
+#ifndef __HCI_CONTROL_LE_H_
+#define __HCI_CONTROL_LE_H_
 
 #pragma once
 
 #include <wiced_bt_cfg.h>
 #include <wiced_bt_gatt.h>
+#include <wiced_timer.h>
+
+#include "hci_control_api.h"
+#include "app.h"
 
 /******************************************************
  *                     Constants
@@ -96,6 +102,20 @@ typedef struct t_hci_control_le_pending_tx_buffer_t
  ******************************************************/
 void hci_control_le_init(void);
 void hci_control_le_enable(const wiced_bt_cfg_settings_t *settings);
-void hci_control_le_connect_timeout(uint32_t count);
-wiced_bt_gatt_status_t hci_control_le_gatt_callback(wiced_bt_gatt_evt_t event,
-        wiced_bt_gatt_event_data_t *p_data);
+void hci_control_le_connect_timeout(TIMER_PARAM_TYPE count);
+wiced_bt_gatt_status_t hci_control_le_gatt_callback(wiced_bt_gatt_evt_t event, wiced_bt_gatt_event_data_t *p_data);
+void hci_control_le_gatt_op_comp_read_handle(uint16_t conn_idx, wiced_bt_gatt_operation_complete_t *p_complete);
+void hci_control_le_gatt_op_comp_write_handle(uint16_t conn_idx, wiced_bt_gatt_status_t status);
+void hci_control_le_notification_handler( uint16_t conn_idx, uint16_t handle, uint8_t *p_data, uint16_t len );
+void hci_control_le_indication_handler( uint16_t conn_idx, uint16_t handle, uint8_t *p_data, uint16_t len );
+wiced_bt_gatt_status_t hci_control_le_write_handler( uint16_t conn_idx, app_gatt_write_req_t * p_data );
+wiced_result_t hci_control_le_write_exec_handler( uint16_t conn_idx, wiced_bt_gatt_exec_flag_t flag );
+wiced_result_t  hci_control_le_conf_handler( uint16_t conn_idx, uint16_t handle );
+
+/******************************************************
+ *               extern
+ ******************************************************/
+extern hci_control_le_cb_t le_control_cb;
+
+
+#endif // __HCI_CONTROL_LE_H_

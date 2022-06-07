@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -139,3 +139,5 @@ wiced_result_t av_app_deinit(void);
 void hci_control_audio_support_features_send(void);
 
 wiced_bool_t hci_control_audio_is_connected(void);
+
+void a2dp_app_hci_control_audio_stop(void);

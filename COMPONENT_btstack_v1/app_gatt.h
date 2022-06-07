@@ -31,22 +31,36 @@
  * so agrees to indemnify Cypress against all liability.
  */
 
-/** @file
- *
- * This file implements the Test Commands controlled over UART. Please refer to the
- * WICED HCI Control Protocol Software User Manual (WICED-SWUM10x-R) for additional
- * details on the HCI UART control protocol
- */
+#ifndef __APP_HCI_H_
+#define __APP_HCI_H_
 
-#ifndef _HCI_CONTROL_TEST_H_
-#define _HCI_CONTROL_TEST_H_
+#include "wiced_bt_gatt.h"
 
-/*****************************************************************************
-**  Function prototypes
-*****************************************************************************/
+/******************************************************
+ *               Macro Function Definitions
+ ******************************************************/
+#define app_gatt_get_conn_idx( id ) ( id )
+#define app_gatt_get_conn_id( idx ) ( idx )
+#define app_gatt_valid_conn_id( idx ) ( le_control_cb.conn[idx].conn_id == idx )
+#define app_gatt_discovery_type( p ) ( p->disc_type )
 
-/* Test Commands Group functions */
-extern void hci_control_test_handle_command( uint16_t cmd_opcode, uint8_t* p_data, uint32_t data_len );
-extern void hci_control_handle_hci_test_event( uint8_t * p_data, uint16_t length );
+#define APP_GATT_WRITE_NRSP GATT_WRITE_NO_RSP
+#define APP_GATT_WRITE GATT_WRITE
 
-#endif /* _HCI_CONTROL_TEST_H_ */
+#define wiced_bt_gatt_server_send_notification( id, handle, len, data, ptr ) wiced_bt_gatt_send_notification( id, handle, len, data )
+#define wiced_bt_gatt_client_send_indication_confirm( id, handle ) wiced_bt_gatt_send_indication_confirm( id, handle )
+#define wiced_bt_gatt_client_send_discover( id, type, para ) wiced_bt_gatt_send_discover( id, type, para )
+
+/******************************************************
+ *               Function Definitions
+ ******************************************************/
+wiced_result_t         app_gatt_operation_comp_cb( wiced_bt_gatt_operation_complete_t *p_complete );
+wiced_bt_gatt_status_t app_gatt_req_cb( wiced_bt_gatt_attribute_request_t *p_req );
+wiced_bt_gatt_status_t app_gatt_send_write( uint8_t conn_idx, uint16_t attr_handle, uint8_t *p_data, uint16_t len, wiced_bt_gatt_write_type_t type );
+wiced_bt_gatt_status_t app_gatt_client_send_read_handle( uint16_t conn_idx, uint16_t handle );
+wiced_bt_gatt_status_t app_gatt_send_response(uint16_t conn_id, uint16_t handle, uint8_t *p_data, uint16_t len );
+wiced_bt_gatt_status_t app_gatt_operation_complete(wiced_bt_gatt_operation_complete_t *p_data);
+void                   app_gatt_send_read_by_handle(uint16_t conn_id, uint16_t handle);
+wiced_bool_t           app_gatt_send_read_by_type(uint16_t conn_id, uint16_t s_handle, uint16_t e_handle, uint16_t uuid);
+
+#endif // __APP_HCI_H_

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -52,7 +52,7 @@ void panu_hci_send_panu_event(uint16_t evt, uint16_t handle, panu_event_t *p_dat
     uint8_t  *p = tx_buf;
     int       i;
 
-    WICED_BT_TRACE("panu_hci_send_panu_event: Sending Event: %u  to UART\n", evt);
+    WICED_BT_TRACE("panu_hci_send_panu_event: Sending Event: 0x%04x  to UART\n", evt);
 
     switch ( evt )
     {
@@ -66,7 +66,10 @@ void panu_hci_send_panu_event(uint16_t evt, uint16_t handle, panu_event_t *p_dat
             *p++ = p_data->conn.bd_addr[BD_ADDR_LEN - 1 - i];
         break;
 
-    default:                             /* Rest have no parameters */
+    case HCI_CONTROL_PANU_EVENT_SERVICE_NOT_FOUND:
+    case HCI_CONTROL_PANU_EVENT_CONNECTION_FAILED:
+    case HCI_CONTROL_PANU_EVENT_DISCONNECTED:
+    default:
         break;
     }
 
@@ -101,6 +104,20 @@ void panu_disconnected(uint16_t handle)
     panu_hci_send_panu_event( HCI_CONTROL_PANU_EVENT_DISCONNECTED, p_scb->app_handle, NULL );
 }
 
+void panu_connect_failed(uint16_t handle)
+{
+    pan_session_cb_t *p_scb = &sdp_panu_scb;
+    p_scb->state = PANU_STATE_IDLE;
+
+    if (p_scb->app_handle != handle)
+    {
+        WICED_BT_TRACE( "panu_connect_failed, p_scb->app_handle = %d, handle = %d\n", p_scb->app_handle, handle );
+        return;
+    }
+
+    panu_hci_send_panu_event(HCI_CONTROL_PANU_EVENT_CONNECTION_FAILED, p_scb->app_handle, NULL);
+}
+
 static void panu_conn_state_cback(uint16_t handle, BD_ADDR bd_addr, tPAN_RESULT state,
                                      BOOLEAN is_role_change, uint8_t src_role, uint8_t dst_role)
 {
@@ -114,6 +131,10 @@ static void panu_conn_state_cback(uint16_t handle, BD_ADDR bd_addr, tPAN_RESULT 
     else if (state == PAN_DISCONNECTED)
     {
         panu_disconnected(handle);
+    }
+    else
+    {
+        panu_connect_failed(handle);
     }
 }
 
@@ -174,12 +195,12 @@ void hci_control_panu_handle_command(uint16_t opcode, uint8_t* p_data, uint32_t 
     switch (opcode)
     {
     case HCI_CONTROL_PANU_COMMAND_CONNECT:
-        WICED_BT_TRACE( "HCI_CONTROL_PANU_COMMAND_CONNECT\n");
+        WICED_BT_TRACE("HCI_CONTROL_PANU_COMMAND_CONNECT\n");
         wiced_bt_panu_connect(p);
         break;
 
     case HCI_CONTROL_PANU_COMMAND_DISCONNECT:
-        WICED_BT_TRACE( "HCI_CONTROL_PANU_COMMAND_DISCONNECT\n");
+        WICED_BT_TRACE("HCI_CONTROL_PANU_COMMAND_DISCONNECT\n");
         handle = p[0] | ( p[1] << 8 );
         wiced_bt_panu_disconnect(handle);
         break;

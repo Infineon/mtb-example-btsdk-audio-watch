@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -133,7 +133,7 @@
  *
  *  HFP Audio Gateway:
  *  - These targets support HFP Audio Gateway:
- *    CYW920721B2EVK-02, CYW920721M2EVK-01, CYW920721M2EVK-02, CYW9M2BASE-43012BT and CYW943012BTEVK-01
+ *    CYW920721M2EVK-01, CYW920721M2EVK-02, CYW9M2BASE-43012BT and CYW943012BTEVK-01
  *  - Build with "HFP_AG_INCLUDED=1" to enable AG. (disable Handsfree Unit simultaneously)
  *  - The Watch app can demonstrate how to use HFP AG as below.
  *  - Make a HFP Headset (headphone or earbuds) discoverable and pairable by its specific behavior.
@@ -145,7 +145,7 @@
 
  *  HFP Handsfree Unit:
  *  - These targets support HFP Hands-free Unit by default:
- *    CYW920721B2EVK-02, CYW920721M2EVK-01, CYW920721M2EVK-02, CYW9M2BASE-43012BT and CYW943012BTEVK-01
+ *    CYW920721M2EVK-01, CYW920721M2EVK-02, CYW9M2BASE-43012BT and CYW943012BTEVK-01
  *  - To create handsfree connection with remote Audio Gateway (AG) device (such as mobile phone), using
  *    ClientControl and choose the Bluetooth address of the remote AG device from the BR/EDR combo box.
  *    Click "Connect" button under HF tab.
@@ -248,6 +248,7 @@
 #ifdef WICED_APP_PANNAP_INCLUDED
 #include "hci_control_pannap.h"
 #endif
+#include "app.h"
 
 /*****************************************************************************
 **  Constants
@@ -257,47 +258,6 @@
 #define KEY_INFO_POOL_BUFFER_COUNT  5  //Correspond's to the number of peer devices
 
 #define SECI_BAUD_RATE    2000000  // Applicable for 20719B1 and 20721B1 when Coex is used
-
-#ifdef CYW20819A1
-#define WICED_TRANSPORT_BUFFER_COUNT    1
-#else
-#define WICED_TRANSPORT_BUFFER_COUNT    2
-#endif
-
-/*****************************************************************************
-**  Structures
-*****************************************************************************/
-typedef struct
-{
-    void    *p_next;
-    uint16_t nvram_id;
-    uint8_t  chunk_len;
-    uint8_t  data[1];
-} hci_control_nvram_chunk_t;
-
-#if BTSTACK_VER >= 0x03000001
-#ifndef PACKED
-#define PACKED
-#endif
-#pragma pack(1)
-
-typedef PACKED struct
-{
-    uint8_t                           br_edr_key_type;
-    wiced_bt_link_key_t               br_edr_key;
-    wiced_bt_dev_le_key_type_t        le_keys_available_mask;
-    wiced_bt_ble_address_type_t       ble_addr_type;
-    wiced_bt_ble_address_type_t       static_addr_type; //55572A1 does not have but 20721 does.
-    wiced_bt_device_address_t         static_addr; //55572A1 does not have but 20721 does.
-    wiced_bt_ble_keys_t               le_keys;
-} wiced_bt_device_sec_keys_t_20721;
-
-typedef PACKED struct
-{
-    wiced_bt_device_address_t   bd_addr;
-    wiced_bt_device_sec_keys_t_20721  key_data;
-} wiced_bt_device_link_keys_t_20721;
-#endif
 
 /******************************************************
  *               Variables Definitions
@@ -317,15 +277,6 @@ hci_control_cb_t  hci_control_cb;
 #endif
 
 wiced_transport_buffer_pool_t* transport_pool;   // Trans pool for sending the RFCOMM data to host
-#if BTSTACK_VER >= 0x03000001
-wiced_bt_pool_t                *p_key_info_pool;  //Pool for storing the  key info
-#else
-wiced_bt_buffer_pool_t*        p_key_info_pool;  //Pool for storing the  key info
-#endif
-
-#if BTSTACK_VER >= 0x03000001
-extern wiced_bt_heap_t *p_default_heap;
-#endif
 
 // memory optimizations
 #if defined(CYW43012C0)
@@ -337,13 +288,6 @@ uint8_t g_wiced_memory_pre_init_num_ble_rl = 16;
 /******************************************************
  *               Function Declarations
  ******************************************************/
-static void hci_control_transport_status( wiced_transport_type_t type );
-static uint32_t hci_control_proc_rx_cmd( uint8_t *p_data, uint32_t length );
-#if BTSTACK_VER >= 0x03000001
-static void hci_control_transport_tx_cplt_cback(void);
-#else
-static void hci_control_transport_tx_cplt_cback(wiced_transport_buffer_pool_t* p_pool);
-#endif
 static void hci_control_handle_reset_cmd( void );
 static void hci_control_handle_trace_enable( uint8_t *p_data );
 static void hci_control_device_handle_command( uint16_t cmd_opcode, uint8_t* p_data, uint32_t data_len );
@@ -359,6 +303,7 @@ static void hci_control_handle_user_confirmation( uint8_t *p_bda, uint8_t accept
 static void hci_control_handle_read_buffer_stats( void );
 static void hci_control_send_device_started_evt( void );
 extern wiced_result_t wiced_bt_avrc_ct_cleanup( void );
+extern uint8_t find_index_by_conn_id(uint16_t conn_id);
 #if (defined(SLEEP_SUPPORTED) && (SLEEP_SUPPORTED == WICED_TRUE))
 static void hci_control_sleep_configure(void);
 #endif
@@ -367,90 +312,6 @@ static void hci_control_sleep_configure(void);
  *                                Variable/Structure/type Definitions
  ******************************************************************************/
 
-#if ( !defined(CYW43012C0) && (WICED_HCI_TRANSPORT == WICED_HCI_TRANSPORT_SPI))
-
-#ifndef CYW20706A2
-#ifdef CYW20819A1
-#define SPI_GPIO_CFG    SPI_PIN_CONFIG(WICED_P09, WICED_P15, WICED_P06, WICED_P17)
-#else
-#define SLAVE1_P01_CS_P10_CLK_P28_MOSI_P29_MISO     0x010A1C1D
-#define SPI_GPIO_CFG    SLAVE1_P01_CS_P10_CLK_P28_MOSI_P29_MISO
-#endif
-#endif
-const wiced_transport_cfg_t transport_cfg =
-{
-    .type = WICED_TRANSPORT_SPI,
-    .cfg =
-    {
-        .spi_cfg =
-        {
-#ifdef CYW20706A2
-            .dev_role            = SPI_SLAVE_ROLE,
-            .spi_gpio_cfg        = SLAVE1_P02_CS_P03_CLK_P00_MOSI_P25_MISO, /**< Pins to use for the data and clk lines. Refer  spiffdriver.h for details */
-            .spi_pin_pull_config = INPUT_PIN_FLOATING,
-#elif (CYW20719B2 || CYW20721B2)
-#else
-            .dev_role            = SPI_SLAVE,
-            .spi_gpio_cfg        = SPI_GPIO_CFG, /**< Pins to use for the data and clk lines. Refer  spiffdriver.h for details */
-            .spi_pin_pull_config = INPUT_PIN_PULL_DOWN,
-#endif
-            .clock_speed         = 0,
-            .endian              = SPI_MSB_FIRST,
-            .polarity            = SPI_SS_ACTIVE_LOW,
-            .mode                = SPI_MODE_0,
-#ifdef CYW20706A2
-            .cs_pin              =  0,
-            .slave_ready_pin     =  WICED_P15
-#elif (CYW20719B2 || CYW20721B2)
-#else
-            .cs_pin              =  0,
-            .slave_ready_pin     =  WICED_P06
-#endif
-        },
-    },
-    .rx_buff_pool_cfg =
-    {
-        .buffer_size  = TRANS_SPI_BUFFER_SIZE,
-        .buffer_count = WICED_TRANSPORT_BUFFER_COUNT
-    },
-    .p_status_handler    = hci_control_transport_status,
-    .p_data_handler      = hci_control_proc_rx_cmd,
-    .p_tx_complete_cback = hci_control_transport_tx_cplt_cback
-};
-
-#else
-
-const wiced_transport_cfg_t transport_cfg =
-{
-    .type = WICED_TRANSPORT_UART,
-    .cfg =
-    {
-        .uart_cfg =
-        {
-            .mode = WICED_TRANSPORT_UART_HCI_MODE,
-            .baud_rate =  HCI_UART_DEFAULT_BAUD
-        },
-    },
-#if BTSTACK_VER >= 0x03000001
-    .heap_config =
-    {
-        .data_heap_size = 1024 * 4 + 1500 * 2,
-        .hci_trace_heap_size = 1024 * 2,
-        .debug_trace_heap_size = 1024,
-    },
-#else
-    .rx_buff_pool_cfg =
-    {
-        .buffer_size  = TRANS_UART_BUFFER_SIZE,
-        .buffer_count = WICED_TRANSPORT_BUFFER_COUNT
-    },
-#endif
-    .p_status_handler    = hci_control_transport_status,
-    .p_data_handler      = hci_control_proc_rx_cmd,
-    .p_tx_complete_cback = hci_control_transport_tx_cplt_cback
-};
-
-#endif
 
 /******************************************************
  *               Function Definitions
@@ -511,12 +372,8 @@ void hci_control_post_init(void)
     wiced_bt_dev_register_hci_trace(hci_control_hci_packet_cback);
 
     // Creating a buffer pool for holding the peer devices's key info
-#if BTSTACK_VER >= 0x03000001
-    p_key_info_pool = wiced_bt_create_pool("pki", KEY_INFO_POOL_BUFFER_SIZE,
-            KEY_INFO_POOL_BUFFER_COUNT, NULL);
-#else
-    p_key_info_pool = wiced_bt_create_pool( KEY_INFO_POOL_BUFFER_SIZE, KEY_INFO_POOL_BUFFER_COUNT );
-#endif
+    p_key_info_pool = app_create_pool( KEY_INFO_POOL_BUFFER_SIZE, KEY_INFO_POOL_BUFFER_COUNT );
+
     if (p_key_info_pool == NULL)
         WICED_BT_TRACE("Err: wiced_bt_create_pool failed\n");
 
@@ -748,11 +605,7 @@ void hci_control_hci_packet_cback( wiced_bt_hci_trace_type_t type, uint16_t leng
 {
 #if (WICED_HCI_TRANSPORT == WICED_HCI_TRANSPORT_UART)
     // send the trace
-#if BTSTACK_VER >= 0x03000001
-    wiced_transport_send_hci_trace(type, p_data, length);
-#else
-    wiced_transport_send_hci_trace( NULL, type, length, p_data  );
-#endif
+    app_transport_send_hci_trace(type, p_data, length);
 #endif
 
     if ( !test_command.test_executing )
@@ -769,12 +622,12 @@ void hci_control_hci_packet_cback( wiced_bt_hci_trace_type_t type, uint16_t leng
 /*
  * Process HCI commands from the MCU
  */
-static void hci_control_ams_handle_command(uint16_t opcode, uint8_t *p_data, uint16_t payload_len)
+static void hci_control_ams_handle_command(uint8_t index, uint16_t opcode, uint8_t *p_data, uint16_t payload_len)
 {
     uint8_t status = HCI_CONTROL_STATUS_SUCCESS;
     uint8_t ams_remote_command_id;
 
-    WICED_BT_TRACE("cmd_opcode 0x%02x\n", opcode);
+    WICED_BT_TRACE("ams:index:%d, opcode:0x%02x\n", index, opcode);
 
     switch (opcode)
     {
@@ -816,7 +669,7 @@ static void hci_control_ams_handle_command(uint16_t opcode, uint8_t *p_data, uin
 
     if (status == HCI_CONTROL_STATUS_SUCCESS)
     {
-        wiced_bt_ams_client_send_remote_command(ams_remote_command_id);
+        wiced_bt_ams_client_send_remote_command(index, ams_remote_command_id);
     }
 
     hci_control_send_command_status_evt(HCI_CONTROL_AVRC_CONTROLLER_EVENT_COMMAND_STATUS, status);
@@ -827,11 +680,11 @@ static void hci_control_ams_handle_command(uint16_t opcode, uint8_t *p_data, uin
 /*
  * Process HCI commands from the MCU
  */
-static void hci_control_ancs_handle_command(uint16_t opcode, uint8_t *p_data, uint16_t payload_len)
+static void hci_control_ancs_handle_command(uint8_t index, uint16_t opcode, uint8_t *p_data, uint16_t payload_len)
 {
     wiced_bool_t result;
-
-    result = wiced_ancs_client_send_remote_command(p_data[0] + (p_data[1] << 8) + (p_data[2] << 16) + (p_data[3] << 24), p_data[4]);
+    WICED_BT_TRACE("ancs:index:%d\n", index);
+    result = wiced_ancs_client_send_remote_command(index, p_data[0] + (p_data[1] << 8) + (p_data[2] << 16) + (p_data[3] << 24), p_data[4]);
 
     hci_control_send_command_status_evt(HCI_CONTROL_ANCS_EVENT_COMMAND_STATUS,
                                         result ? HCI_CONTROL_STATUS_SUCCESS : HCI_CONTROL_STATUS_FAILED );
@@ -843,13 +696,14 @@ static void hci_control_ancs_handle_command(uint16_t opcode, uint8_t *p_data, ui
  * Software User Manual (WICED-Smart-Ready-SWUM100-R) for details on the
  * HCI UART control protocol.
 */
-static uint32_t hci_control_proc_rx_cmd( uint8_t *p_buffer, uint32_t length )
+uint32_t hci_control_proc_rx_cmd( uint8_t *p_buffer, uint32_t length )
 {
     uint16_t opcode;
     uint16_t payload_len;
     uint8_t *p_data = p_buffer;
     uint8_t  buffer_processed = WICED_TRUE;
-
+    uint16_t conn_id;
+    uint8_t  index = 0xff;
     if ( !p_buffer )
     {
         return HCI_CONTROL_STATUS_INVALID_ARGS;
@@ -859,9 +713,8 @@ static uint32_t hci_control_proc_rx_cmd( uint8_t *p_buffer, uint32_t length )
     if(( length < 4 ) || (p_data == NULL))
     {
         WICED_BT_TRACE("invalid params\n");
-#ifndef BTSTACK_VER
-        wiced_transport_free_buffer( p_buffer );
-#endif
+        app_free_rx_cmd_buffer( p_buffer );
+
         return HCI_CONTROL_STATUS_INVALID_ARGS;
     }
 
@@ -905,9 +758,11 @@ static uint32_t hci_control_proc_rx_cmd( uint8_t *p_buffer, uint32_t length )
 #endif
         {
 #ifdef WICED_APP_AMS_INCLUDED
-            if ( wiced_bt_ams_client_connection_check() )
+            conn_id = (p_data[0]) | (p_data[1] << 8);
+            index = find_index_by_conn_id(conn_id);
+            if ((index != 0xff) && ( wiced_bt_ams_client_connection_check(index)))
             {
-                hci_control_ams_handle_command( opcode, p_data, payload_len );
+                hci_control_ams_handle_command(index, opcode, p_data, payload_len);
             }
             else
 #endif
@@ -927,7 +782,10 @@ static uint32_t hci_control_proc_rx_cmd( uint8_t *p_buffer, uint32_t length )
 
 #ifdef WICED_APP_ANCS_INCLUDED
     case HCI_CONTROL_GROUP_ANCS:
-        hci_control_ancs_handle_command( opcode, p_data, payload_len );
+        conn_id = (p_data[0]) | (p_data[1] << 8);
+        index = find_index_by_conn_id(conn_id);
+        if (index != 0xff)
+        hci_control_ancs_handle_command( index, opcode, p_data+2, payload_len );
         break;
 #endif
 
@@ -958,10 +816,8 @@ static uint32_t hci_control_proc_rx_cmd( uint8_t *p_buffer, uint32_t length )
     }
     if (buffer_processed)
     {
-#ifndef BTSTACK_VER
         // Freeing the buffer in which data is received
-        wiced_transport_free_buffer( p_buffer );
-#endif
+        app_free_rx_cmd_buffer( p_buffer );
     }
 
     return HCI_CONTROL_STATUS_SUCCESS;
@@ -1051,8 +907,6 @@ void hci_control_handle_trace_enable( uint8_t *p_data )
     uint8_t hci_trace_enable = *p_data++;
     wiced_debug_uart_types_t route_debug = (wiced_debug_uart_types_t)*p_data;
 
-    WICED_BT_TRACE("HCI Traces:%d DebugRoute:%d\n", hci_trace_enable, route_debug);
-
     if ( hci_trace_enable )
     {
         /* Register callback for receiving hci traces */
@@ -1063,7 +917,6 @@ void hci_control_handle_trace_enable( uint8_t *p_data )
     {
         wiced_bt_dev_register_hci_trace( NULL);
     }
-
 #if (defined(SLEEP_SUPPORTED) && (SLEEP_SUPPORTED == WICED_TRUE))
     route_debug = WICED_ROUTE_DEBUG_TO_PUART;
 #endif
@@ -1072,8 +925,8 @@ void hci_control_handle_trace_enable( uint8_t *p_data )
 #if (WICED_HCI_TRANSPORT != WICED_HCI_TRANSPORT_SPI)
     wiced_set_debug_uart( route_debug );
 #endif
-
     hci_control_send_command_status_evt( HCI_CONTROL_EVENT_COMMAND_STATUS, HCI_CONTROL_STATUS_SUCCESS );
+    WICED_BT_TRACE("HCI Traces:%d DebugRoute:%d\n", hci_trace_enable, route_debug);
 }
 
 /*
@@ -1094,64 +947,7 @@ void hci_control_handle_set_local_bda( uint8_t *p_bda)
  */
 void hci_control_handle_read_buffer_stats( void )
 {
-#if BTSTACK_VER >= 0x03000001
-    /*
-     * Get statistics of default heap.
-     * TODO: get statistics of stack heap (btu_cb.p_heap)
-     */
-    wiced_bt_heap_statistics_t heap_stat;
-
-    if (wiced_bt_get_heap_statistics(p_default_heap, &heap_stat))
-    {
-        WICED_BT_TRACE("--- heap_size:%d ---\n", heap_stat.heap_size);
-        WICED_BT_TRACE("max_single_allocation:%d max_heap_size_used:%d\n",
-                heap_stat.max_single_allocation,
-                heap_stat.max_heap_size_used);
-        WICED_BT_TRACE("allocation_failure_count:%d current_largest_free_size:%d\n",
-                heap_stat.allocation_failure_count,
-                heap_stat.current_largest_free_size);
-        WICED_BT_TRACE("current_num_allocations:%d current_size_allocated:%d\n",
-                heap_stat.current_num_allocations,
-                heap_stat.current_size_allocated);
-        WICED_BT_TRACE("current_num_free_fragments:%d current_free_size\n",
-                heap_stat.current_num_free_fragments,
-                heap_stat.current_free_size);
-
-        wiced_transport_send_data(HCI_CONTROL_EVENT_READ_BUFFER_STATS,
-                (uint8_t *)&heap_stat, sizeof(heap_stat));
-    }
-#else /* !BTSTACK_VER */
-    uint8_t buff_pools = 0;
-#ifdef WICEDX
-#define BUFF_POOLS 5
-    wiced_bt_buffer_statistics_t buff_stats[BUFF_POOLS];
-    buff_pools = BUFF_POOLS;
-#else
-    wiced_bt_buffer_statistics_t buff_stats[wiced_bt_get_number_of_buffer_pools()];
-    buff_pools = wiced_bt_get_number_of_buffer_pools();
-#endif
-    wiced_result_t result;
-    uint8_t i;
-
-    result = wiced_bt_get_buffer_usage( buff_stats, sizeof( buff_stats ) );
-
-    if( result == WICED_BT_SUCCESS )
-    {
-        // Print out the stats to trace
-        WICED_BT_TRACE( "Buffer usage statistics:\n");
-
-        for( i=0; i < buff_pools; i++) {
-            WICED_BT_TRACE("pool_id:%d size:%d curr_cnt:%d max_cnt:%d total:%d\n",
-                           buff_stats[i].pool_id, buff_stats[i].pool_size,
-                           buff_stats[i].current_allocated_count, buff_stats[i].max_allocated_count,
-                           buff_stats[i].total_count);
-        }
-
-        // Return the stats via WICED-HCI
-        wiced_transport_send_data( HCI_CONTROL_EVENT_READ_BUFFER_STATS, (uint8_t*)&buff_stats, sizeof( buff_stats ) );
-    }
-    else
-#endif /* BTSTACK_VER */
+    if (app_read_buffer_stats()!= WICED_BT_SUCCESS)
     {
         hci_control_send_command_status_evt( HCI_CONTROL_EVENT_COMMAND_STATUS, HCI_CONTROL_STATUS_FAILED );
     }
@@ -1267,11 +1063,7 @@ void hci_control_handle_set_pairability ( uint8_t pairing_allowed )
         if ( pairing_allowed )
         {
             // Check if key buffer pool has buffer available. If not, cannot enable pairing until nvram entries are deleted
-#if BTSTACK_VER >= 0x03000001
-            if (wiced_bt_get_pool_free_count(p_key_info_pool) <= 0)
-#else
-            if (wiced_bt_get_buffer_count(p_key_info_pool) <= 0)
-#endif
+            if (app_get_pool_free_count(p_key_info_pool) <= 0)
             {
                 WICED_BT_TRACE( "Err: No more memory for Pairing\n" );
                 pairing_allowed = 0; //The key buffer pool is full therefore we cannot allow pairing to be enabled
@@ -1344,21 +1136,7 @@ void hci_control_handle_user_confirmation( uint8_t *p_bda, uint8_t accept_pairin
 void hci_control_send_device_started_evt( void )
 {
     wiced_transport_send_data( HCI_CONTROL_EVENT_DEVICE_STARTED, NULL, 0 );
-
-#if BTSTACK_VER >= 0x03000001
-    WICED_BT_TRACE( "maxChannels:%d maxpsm:%d rfcom max links%d, rfcom max ports:%d\n",
-            wiced_bt_cfg_settings.p_l2cap_app_cfg->max_app_l2cap_channels,
-            wiced_bt_cfg_settings.p_l2cap_app_cfg->max_app_l2cap_psms,
-            wiced_bt_cfg_settings.p_br_cfg->rfcomm_cfg.max_links,
-            wiced_bt_cfg_settings.p_br_cfg->rfcomm_cfg.max_ports );
-#else
-    WICED_BT_TRACE( "maxLinks:%d maxChannels:%d maxpsm:%d rfcom max links%d, rfcom max ports:%d\n",
-            wiced_bt_cfg_settings.l2cap_application.max_links,
-            wiced_bt_cfg_settings.l2cap_application.max_channels,
-            wiced_bt_cfg_settings.l2cap_application.max_psm,
-            wiced_bt_cfg_settings.rfcomm_cfg.max_links,
-            wiced_bt_cfg_settings.rfcomm_cfg.max_ports );
-#endif
+    app_pr_dev_started_evt();
 }
 
 /*
@@ -1604,93 +1382,7 @@ wiced_result_t hci_control_send_avrc_event( int type, uint8_t *p_data, uint16_t 
  */
 int hci_control_write_nvram( int nvram_id, int data_len, void *p_data, wiced_bool_t from_host )
 {
-    uint8_t                    tx_buf[257];
-    uint8_t                   *p = tx_buf;
-    hci_control_nvram_chunk_t *p1;
-    wiced_result_t            result;
-
-#if BTSTACK_VER >= 0x03000001
-    wiced_bt_device_link_keys_t data;
-    wiced_bt_device_link_keys_t_20721 * p_data_from_host;
-    wiced_bt_device_link_keys_t_20721 device_link_key_data;
-
-    if (from_host)
-    {
-        p_data_from_host = (wiced_bt_device_link_keys_t_20721 *)p_data;
-        memset(&data, 0, sizeof(wiced_bt_device_link_keys_t));
-        memcpy(&data.bd_addr, &p_data_from_host->bd_addr, sizeof(wiced_bt_device_address_t));
-        data.key_data.br_edr_key_type = p_data_from_host->key_data.br_edr_key_type;
-        memcpy(&data.key_data.br_edr_key, &p_data_from_host->key_data.br_edr_key, sizeof(wiced_bt_link_key_t));
-        data.key_data.le_keys_available_mask = p_data_from_host->key_data.le_keys_available_mask;
-        data.key_data.ble_addr_type = p_data_from_host->key_data.ble_addr_type;
-        memcpy(&data.key_data.le_keys, &p_data_from_host->key_data.le_keys, sizeof(wiced_bt_ble_keys_t));
-        data_len = sizeof(wiced_bt_device_link_keys_t);
-        p_data = &data;
-}
-#endif
-
-    /* first check if this ID is being reused and release the memory chunk */
-    hci_control_delete_nvram( nvram_id, WICED_FALSE );
-
-    /* Allocating a buffer from the pool created for storing the peer info */
-    if ( ( p1 = ( hci_control_nvram_chunk_t * )wiced_bt_get_buffer_from_pool( p_key_info_pool ) ) == NULL)
-    {
-        WICED_BT_TRACE( "Failed to alloc:%d\n", data_len );
-        return ( 0 );
-    }
-
-    if ( wiced_bt_get_buffer_size( p1 ) < ( sizeof( hci_control_nvram_chunk_t ) + data_len - 1 ) )
-    {
-        WICED_BT_TRACE( "Insufficient buffer size, Buff Size %d, Len %d  \n",
-                        wiced_bt_get_buffer_size( p1 ),
-                        ( sizeof( hci_control_nvram_chunk_t ) + data_len - 1 ) );
-        wiced_bt_free_buffer( p1 );
-        return ( 0 );
-    }
-
-    p1->p_next    = p_nvram_first;
-    p1->nvram_id  = nvram_id;
-    p1->chunk_len = data_len;
-    memcpy( p1->data, p_data, data_len );
-
-    p_nvram_first = p1;
-
-    wiced_bt_device_link_keys_t * p_keys = ( wiced_bt_device_link_keys_t *) p_data;
-#ifdef CYW20706A2
-    result = wiced_bt_dev_add_device_to_address_resolution_db( p_keys, p_keys->key_data.ble_addr_type );
-#else
-    result = wiced_bt_dev_add_device_to_address_resolution_db( p_keys );
-#endif
-    WICED_BT_TRACE("Updated Addr Resolution DB:%d\n", result );
-
-    // If NVRAM chunk arrived from host, no need to send it back, otherwise send over transport
-    if (!from_host)
-    {
-        *p++ = nvram_id & 0xff;
-        *p++ = (nvram_id >> 8) & 0xff;
-#if BTSTACK_VER >= 0x03000001
-        memset(&device_link_key_data, 0, sizeof(wiced_bt_device_link_keys_t_20721));
-        memcpy(&device_link_key_data.bd_addr, &p_keys->bd_addr, sizeof(wiced_bt_device_address_t));
-
-        device_link_key_data.key_data.br_edr_key_type = p_keys->key_data.br_edr_key_type;
-        memcpy(&device_link_key_data.key_data.br_edr_key, &p_keys->key_data.br_edr_key, sizeof(wiced_bt_link_key_t));
-        device_link_key_data.key_data.le_keys_available_mask = p_keys->key_data.le_keys_available_mask;
-        device_link_key_data.key_data.ble_addr_type = p_keys->key_data.ble_addr_type;
-        memcpy(&device_link_key_data.key_data.le_keys, &p_keys->key_data.le_keys, sizeof(wiced_bt_ble_keys_t));
-        memcpy(p, &device_link_key_data, sizeof(wiced_bt_device_link_keys_t_20721));
-        data_len = sizeof(wiced_bt_device_link_keys_t_20721);
-
-#else
-        memcpy(p, p_data, data_len);
-#endif
-
-        wiced_transport_send_data( HCI_CONTROL_EVENT_NVRAM_DATA, tx_buf, ( int )( data_len + 2 ) );
-    }
-    else
-    {
-        hci_control_send_command_status_evt( HCI_CONTROL_EVENT_COMMAND_STATUS, HCI_CONTROL_STATUS_SUCCESS );
-    }
-    return (data_len);
+    return app_write_nvram(nvram_id, data_len, p_data, from_host);
 }
 
 /*
@@ -1713,6 +1405,33 @@ int hci_control_find_nvram_id(uint8_t *p_data, int len)
 }
 
 /*
+ * Delete bounded device
+ */
+static wiced_result_t hci_control_delete_bonded_device(wiced_bt_device_address_t bd_addr)
+{
+    app_identity_random_mapping_t * addr_map = get_addr_mapping_by_identity_addr(bd_addr);
+    int idx;
+
+    if (addr_map != NULL)
+    {
+        for (idx=0; idx<LE_CONTROL_MAX_CONNECTIONS; idx++)
+        {
+            if (memcmp(addr_map->random_addr, le_control_cb.conn[idx].bd_addr, BD_ADDR_LEN)==0 || memcmp(bd_addr, le_control_cb.conn[idx].bd_addr, BD_ADDR_LEN)==0)
+            {
+                hci_control_le_handle_disconnect_cmd( le_control_cb.conn[idx].conn_id );
+
+                // remove the addr_map bounding info also
+                memset(addr_map, 0, sizeof(app_identity_random_mapping_t));
+                break;
+            }
+        }
+    }
+
+    return wiced_bt_dev_delete_bonded_device(bd_addr);
+}
+
+
+/*
  * Delete NVRAM function is called when host deletes NVRAM chunk from the persistent storage.
  */
 void hci_control_delete_nvram( int nvram_id, wiced_bool_t from_host )
@@ -1733,7 +1452,7 @@ void hci_control_delete_nvram( int nvram_id, wiced_bool_t from_host )
     {
         p1 = p_nvram_first;
 
-        if ( from_host && ( wiced_bt_dev_delete_bonded_device (p1->data) == WICED_ERROR ) )
+        if ( from_host && ( hci_control_delete_bonded_device (p1->data) == WICED_ERROR ) )
         {
             WICED_BT_TRACE("ERROR: while Unbonding device \n");
         }
@@ -1752,7 +1471,7 @@ void hci_control_delete_nvram( int nvram_id, wiced_bool_t from_host )
 
         if ( ( p2 != NULL ) && ( p2->nvram_id == nvram_id ) )
         {
-            if ( from_host && ( wiced_bt_dev_delete_bonded_device (p2->data) == WICED_ERROR ) )
+            if ( from_host && ( hci_control_delete_bonded_device (p2->data) == WICED_ERROR ) )
             {
                 WICED_BT_TRACE("ERROR: while Unbonding device \n");
             }
@@ -1872,23 +1591,7 @@ void hci_control_switch_avrcp_role(uint8_t new_role)
 #endif
 }
 
-/*
- * hci_control_transport_tx_cplt_cback.
- * This function is called when a Transport Buffer has been sent to the MCU
- */
-#if BTSTACK_VER >= 0x03000001
-static void hci_control_transport_tx_cplt_cback(void)
-{
-    return;
-}
-#else
-static void hci_control_transport_tx_cplt_cback(wiced_transport_buffer_pool_t* p_pool)
-{
-    WICED_BT_TRACE( " hci_control_transport_tx_cplt_cback %x \n", p_pool );
-}
-#endif
-
-static void hci_control_transport_status( wiced_transport_type_t type )
+void hci_control_transport_status( wiced_transport_type_t type )
 {
     WICED_BT_TRACE( " hci_control_transport_status %x \n", type );
     hci_control_send_device_started_evt();

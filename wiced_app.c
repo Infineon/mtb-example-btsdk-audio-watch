@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -79,17 +79,10 @@ static wiced_bt_buffer_pool_t* watch_app_pool_big = NULL;
 static wiced_bt_buffer_pool_t* watch_app_pool_small = NULL;
 #endif
 
-#if BTSTACK_VER >= 0x03000001
-#define BT_STACK_HEAP_SIZE          1024 * 7
-wiced_bt_heap_t *p_default_heap = NULL;
-#endif
-
-
 #define WICED_HS_EIR_BUF_MAX_SIZE 264
 
 
 static void write_eir(void);
-static wiced_result_t btm_event_handler(wiced_bt_management_evt_t event, wiced_bt_management_evt_data_t *p_event_data);
 static wiced_result_t btm_enabled_event_handler(wiced_bt_dev_enabled_t *event_data);
 
 #if defined(CYW20819A1)
@@ -104,6 +97,8 @@ WICED_MEM_PRE_INIT_CONTROL g_mem_pre_init =
     .max_multi_adv_instances = WICED_MEM_PRE_INIT_IGNORE,
 };
 #endif
+
+static app_identity_random_mapping_t addr_mapping[ADDR_MAPPING_MAX_COUNT] = {0};
 
 /*
  * Application Start, ie, entry point to the application.
@@ -139,22 +134,8 @@ APPLICATION_START()
 #endif // NO_PUART_SUPPORT
 #endif // WICED_BT_TRACE_ENABLE
 
-#if BTSTACK_VER >= 0x03000001
-    /* Create default heap */
-    p_default_heap = wiced_bt_create_heap("default_heap", NULL, BT_STACK_HEAP_SIZE, NULL,
-            WICED_TRUE);
-    if (p_default_heap == NULL)
-    {
-        WICED_BT_TRACE("create default heap error: size %d\n", BT_STACK_HEAP_SIZE);
-        return;
-    }
-#endif
+    result = app_stack_init();
 
-#if BTSTACK_VER >= 0x03000001
-    result = wiced_bt_stack_init(btm_event_handler, &wiced_bt_cfg_settings);
-#else
-    result = wiced_bt_stack_init(btm_event_handler, &wiced_bt_cfg_settings, wiced_app_cfg_buf_pools);
-#endif
     if (WICED_SUCCESS != result)
     {
         WICED_BT_TRACE("ERROR bt_stack_init %u\n", result);
@@ -181,6 +162,33 @@ APPLICATION_START()
 #endif
 
     WICED_BT_TRACE("Watch App Start\n");
+}
+
+app_identity_random_mapping_t * get_addr_mapping_by_random_addr(wiced_bt_device_address_t random_addr)
+{
+    for (int i=0; i<ADDR_MAPPING_MAX_COUNT;i++)
+    {
+        if (memcmp(random_addr, addr_mapping[i].random_addr, sizeof(wiced_bt_device_address_t))==0)
+            return &addr_mapping[i];
+    }
+    return NULL;
+}
+
+app_identity_random_mapping_t * get_addr_mapping_by_identity_addr(wiced_bt_device_address_t identity_addr)
+{
+    for (int i=0; i<ADDR_MAPPING_MAX_COUNT;i++)
+    {
+        if (memcmp(identity_addr, addr_mapping[i].identity_addr, sizeof(wiced_bt_device_address_t))==0)
+            return &addr_mapping[i];
+    }
+    return NULL;
+}
+
+app_identity_random_mapping_t * get_empty_addr_mapping()
+{
+    wiced_bt_device_address_t empty_addr={0};
+
+    return get_addr_mapping_by_identity_addr(empty_addr);
 }
 
 void write_eir(void)
@@ -259,10 +267,6 @@ wiced_result_t btm_event_handler(wiced_bt_management_evt_t event, wiced_bt_manag
     wiced_bt_power_mgmt_notification_t *p_power_mgmt_notification;
     wiced_bt_dev_pairing_cplt_t        *p_pairing_cmpl;
     uint8_t                             pairing_result;
-#if BTSTACK_VER >= 0x03000001
-    wiced_bt_device_address_t zero_bda = {0};
-    wiced_bt_management_evt_data_t modified_event_data;
-#endif
 
     WICED_BT_TRACE( "btm_event_handler 0x%02x\n", event );
 
@@ -325,13 +329,18 @@ wiced_result_t btm_event_handler(wiced_bt_management_evt_t event, wiced_bt_manag
             if(p_pairing_cmpl->transport == BT_TRANSPORT_BR_EDR)
             {
                 pairing_result = p_pairing_cmpl->pairing_complete_info.br_edr.status;
+                hci_control_send_pairing_completed_evt( pairing_result, p_event_data->pairing_complete.bd_addr );
             }
             else
             {
                 pairing_result = p_pairing_cmpl->pairing_complete_info.ble.reason;
+                app_identity_random_mapping_t * addr_map = get_addr_mapping_by_random_addr(p_event_data->pairing_complete.bd_addr);
+                if ( addr_map != NULL )
+                {
+                    hci_control_send_pairing_completed_evt( pairing_result, addr_map->identity_addr );
+                }
             }
             WICED_BT_TRACE( "Pairing Result: %d\n", pairing_result );
-            hci_control_send_pairing_completed_evt( pairing_result, p_event_data->pairing_complete.bd_addr );
             break;
 
         case BTM_ENCRYPTION_STATUS_EVT:
@@ -360,40 +369,11 @@ wiced_result_t btm_event_handler(wiced_bt_management_evt_t event, wiced_bt_manag
             break;
 
         case BTM_PAIRED_DEVICE_LINK_KEYS_UPDATE_EVT:
-            /* Check if we already have information saved for this bd_addr */
-#if BTSTACK_VER >= 0x03000001
-            // LE connection will have bd_addr(identity_addr) and conn_addr(random_addr)
-            if ( memcmp(p_event_data->paired_device_link_keys_update.conn_addr, zero_bda, sizeof(wiced_bt_device_address_t)) != 0 )
-            {
-                // Save link key infomation for conn_addr
-                memcpy(&modified_event_data, p_event_data, sizeof(wiced_bt_management_evt_data_t));
-                memcpy(modified_event_data.paired_device_link_keys_update.bd_addr, modified_event_data.paired_device_link_keys_update.conn_addr, sizeof(wiced_bt_device_address_t));
-
-                if ( ( nvram_id = hci_control_find_nvram_id( modified_event_data.paired_device_link_keys_update.bd_addr, BD_ADDR_LEN ) ) == 0)
-                {
-                    // This is the first time, allocate id for the new memory chunk
-                    nvram_id = hci_control_alloc_nvram_id( );
-                    WICED_BT_TRACE( "Allocated NVRAM ID:%d\n", nvram_id );
-                }
-                bytes_written = hci_control_write_nvram( nvram_id, sizeof( wiced_bt_device_link_keys_t ), &modified_event_data.paired_device_link_keys_update, WICED_FALSE );
-
-                WICED_BT_TRACE("NVRAM write:id:%d bytes:%d dev: [%B]\n", nvram_id, bytes_written, modified_event_data.paired_device_link_keys_update.bd_addr);
-            }
-#endif
-            if ( ( nvram_id = hci_control_find_nvram_id( p_event_data->paired_device_link_keys_update.bd_addr, BD_ADDR_LEN ) ) == 0)
-            {
-                // This is the first time, allocate id for the new memory chunk
-                nvram_id = hci_control_alloc_nvram_id( );
-                WICED_BT_TRACE( "Allocated NVRAM ID:%d\n", nvram_id );
-            }
-            bytes_written = hci_control_write_nvram( nvram_id, sizeof( wiced_bt_device_link_keys_t ), &p_event_data->paired_device_link_keys_update, WICED_FALSE );
-
-            WICED_BT_TRACE("NVRAM write:id:%d bytes:%d dev: [%B]\n", nvram_id, bytes_written, p_event_data->paired_device_link_keys_update.bd_addr);
+            app_paired_device_link_keys_update( p_event_data );
             break;
 
         case  BTM_PAIRED_DEVICE_LINK_KEYS_REQUEST_EVT:
             /* read existing key from the NVRAM  */
-
             WICED_BT_TRACE("\t\tfind device %B\n", p_event_data->paired_device_link_keys_request.bd_addr);
 
             if ( ( nvram_id = hci_control_find_nvram_id( p_event_data->paired_device_link_keys_request.bd_addr, BD_ADDR_LEN ) ) != 0)

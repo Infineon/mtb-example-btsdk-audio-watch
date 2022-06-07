@@ -1,7 +1,7 @@
 # Watch app
 
 ## Overview
-This app demonstrates Bluetooth&#174; A2DP source, AVRCP Controller/Target, Apple Media Service (AMS), Apple Notification Center Service (ANCS), and HFP Audio Gateway/Hands-free Unit.
+This app demonstrates Bluetooth&#174; A2DP source, AVRCP Controller/Target, Apple Media Service (AMS), Apple Notification Center Service (ANCS), Personal Access Network (PAN), and HFP Audio Gateway/Hands-free Unit.
 
 Features demonstrated:
 
@@ -20,14 +20,14 @@ To demonstrate the app, follow these steps:
 1. Build and download the application to the AIROC&#8482; board.
 2. Open the ClientControl application
      - [UART] Open the "WICED HCI" port for the device.(Default baud rate configured in the application is defined by the BSP HCI\_UART\_DEAULT\_BAUD #define, usually either 3M or 115200 depending on the board UART capabilities.)
-     - [SPI] Open the "WICED PUART" port for the SPI master device (using 115200 baudrate and without flow control). Refer the instructions below for SPI setup (supported on 20719B2/20721B2 only)
+     - [SPI] Open the "WICED PUART" port for the SPI master device (using 115200 baudrate and without flow control). Refer the instructions below for SPI setup (supported on 20719B2 only)
 3. Use the ClientControl application to send various commands as mentioned below.
 4. Run the BTSpy program to view protocol and application traces.
 
 ## SPI as transport instead of UART
 
 1. Download uart\_spi\_bridge application on a 20706A2 board.
-2. Connect SPI pins as indicatd below,
+2. Connect SPI pins as indicated below,
 
     Master (20706A2):
 
@@ -109,16 +109,17 @@ iOS ANCS and AMS GATT Services:
 - Disconnect all devices if any are connected.
 - Select Pairable if it is not checked.
 - Click the "Start Adverts" button in the GATT tab.
-- From an iPhone app such as 'LightBlue', find and connect to the 'WatchAmaLE' app.
+- Set MAX_PHONE_CONNECTIONS for support more than one iPhone.
+- From an iPhone app such as 'LightBlue', find and connect to the 'Watch' app.
 - Allow pairing with the iPhone.
 - AMS:
-  - Play media on the iPhone.
-  - Use buttons in the ClientControl AVRC CT tab to control the music.
+  - Play media on each iPhone. Play,Pause,Prev,Next,Vol Up,Vol Down notification message will be displayed on the UI.
+  - Use buttons like Play,Pause,Prev,Next,Vol Up,Vol Down in the ClientControl AVRC CT tab to control the music.
   - Note that music will continue to play on iPhone.
 - ANCS:
-  - Incoming calls and messages to the iPhone will be displayed on the ANCS buttons.
-  - Make an incoming call to your iPhone. See a call notification displayed on the UI to accept or reject the call. Similarly, missed call notifications are seen.
-  - Send an SMS message to your iPhone to see a message notification.
+  - Incoming calls and messages to the each iPhone notification message will be displayed on the UI.
+  - Make an incoming call to each iPhone. See a call notification displayed on the UI to accept or reject the call. Similarly, missed call notifications are seen.
+  - Send an SMS message to each iPhone to see a message notification.
 
 LE Client:
 
@@ -141,10 +142,33 @@ LE Client:
   - "Value Notify" : Write a notification value to the remote handle
   - "Value Indicate" : Write an indication value to the remote handle
 
+Personal Access Network
+
+- We only implement PANU and PANNAP function for watch project on CYW943012BTEVK.
+- Because 43012C0 memory is not enough, so modify makefile to disable some feature:
+  - "LE\_INCLUDED=0"
+  - "ANCS\_INCLUDED=0"
+  - "AMS\_INCLUDED=0"
+- Modify makefile to open PANU function:
+  - "PANU\_SUPPORT=1"
+  - "PANNAP\_SUPPORT=0"
+- After compile and download image to 43012C0 board, open ClientControl.exe.
+- Click "start" button to scan "PANNAP" device.
+- Make sure one "PANNAP" device is available, for iphone example: enter into "settings" "personal hotspot" "allow others to join" "turn on wlan and bluetooth".
+- In ClientControl, if "PANNAP" device is discovered, then enter into "PANU" tab, and click "connect" button.
+- If PANU of 43012C0 is connected to "PANNAP" device, you can click "disconnect" button to disconnect the PAN connection.
+- Due to lack of LwIP stack, network access is not available now.
+- To test PANNAP function for watch project on CYW943012BTEVK, modify makefile to open PANNAP function:
+  - "PANU\_SUPPORT=0"
+  - "PANNAP\_SUPPORT=1"
+- After compile and download image to 43012C0 board, 43012C0 PANNAP function is available now.
+- Then open mobile phone bluetooth, scan "watch" device.
+- If "watch" device is discovered, you can connect or disconnect PAN connection from mobile phone.
+
 HFP Audio Gateway:
 
 - These targets support HFP Audio Gateway:
-  CYW920721B2EVK-02, CYW920721M2EVK-01, CYW920721M2EVK-02, CYW9M2BASE-43012BT and CYW943012BTEVK-01
+  CYW920721M2EVK-01, CYW920721M2EVK-02, CYW9M2BASE-43012BT and CYW943012BTEVK-01
 - Build with "HFP\_AG\_INCLUDED=1" to enable AG. (disables Hands-free Unit simultaneously)
 - The Watch app can demonstrate how to use HFP AG as shown below.
 - Make a HFP Headset (headphone or earbuds) discoverable and pairable by its specific behavior.
@@ -154,14 +178,14 @@ HFP Audio Gateway:
 - Click the "Audio Connect" button. The AG will create a SCO connection to the Headset, wide-band speech is supported.
 - Click the "Audio Disconnect" button to remove the SCO connection.
 - Use Speaker Volume and Mic Volume Dropdown menu to set HF Speaker gain and HF Microphone gain respectively.
-- Use Indicators (Service availability, call status, callsetup, callheld, singal strength, battery value and roming) dropdown menu to simulate indicator changes.
+- Use Indicators (Service availability, call status, callsetup, callheld, singal strength, battery value and roaming) dropdown menu to simulate indicator changes.
 - To simulate incoming/outgoing call, use indicators dropdown menu and RING/CCWA button.
 
 
 HFP Hands-free Unit:
 
 - These targets support HFP Hands-free Unit by default:
-  CYW920721B2EVK-02, CYW920721M2EVK-01, CYW920721M2EVK-02, CYW9M2BASE-43012BT and CYW943012BTEVK-01
+  CYW920721M2EVK-01, CYW920721M2EVK-02, CYW9M2BASE-43012BT and CYW943012BTEVK-01
 - To create a hands-free connection with a remote Audio Gateway (AG) device (such as a mobile phone), use ClientControl and choose the Bluetooth&#174; address of the remote AG device from the BR/EDR combo box.<br/>
   Click the "Connect" button under HF tab.
 - OR Put the device in discoverable and connectable mode and search for the device from the AG device and connect.
@@ -189,6 +213,7 @@ Application specific settings are as shown below:
 - OTA\_SEC\_FW\_UPGRADE
     - Use this option for secure OTA firmware upgrade
     - 43012C0-related target (CYW9M2BASE-43012BT and CYW943012BTEVK-01) does not support this functionality.
+
 ## BTSTACK version
 
 BTSDK AIROC&#8482; chips contain the embedded AIROC&#8482; Bluetooth&#174; stack, BTSTACK. Different chips use different versions of BTSTACK, so some assets may contain variant sets of files targeting the different versions in COMPONENT\_btstack\_vX (where X is the stack version). Applications automatically include the appropriate folder using the COMPONENTS make variable mechanism, and all BSPs declare which stack version should be used in the BSP .mk file, with a declaration such as:<br>
@@ -207,7 +232,7 @@ Application settings below are common for all BTSDK applications and can be conf
 > Set to the UART port you want to use to download the application. For example 'COM6' on Windows or '/dev/ttyWICED\_HCI\_UART0' on Linux or '/dev/tty.usbserial-000154' on macOS. By default, the SDK will auto-detect the port.
 
 ##### ENABLE_DEBUG
-> For HW debugging, configure ENABLE\_DEBUG=1. See the document [AIROC&#8482;-Hardware-Debugging](https://github.com/cypresssemiconductorco/btsdk-docs/blob/master/docs/BT-SDK/WICED-Hardware-Debugging.pdf) for more information. This setting configures GPIO for SWD.<br>
+> For HW debugging, configure ENABLE\_DEBUG=1. See the document [AIROC&#8482;-Hardware-Debugging](https://github.com/Infineon/btsdk-docs/blob/master/docs/BT-SDK/WICED-Hardware-Debugging.pdf) for more information. This setting configures GPIO for SWD.<br>
 >
    - CYW920819EVB-02/CYW920820EVB-02: SWD signals are shared with D4 and D5, see SW9 in schematics.
    - CYBT-213043-MESH/CYBT-213043-EVAL/CYBT-253059-EVAL: SWD signals are routed to P12=SWDCK and P13=SWDIO. Use expansion connectors to connect VDD, GND, SWDCK, and SWDIO to your SWD Debugger probe.
@@ -218,18 +243,18 @@ Application settings below are common for all BTSDK applications and can be conf
    - CYBT-413055-EVAL/CYBT-413061-EVAL: SWD signals are routed to P16=SWDCK and P17=SWDIO. Use expansion connectors to connect VDD, GND, SWDCK, and SWDIO to your SWD Debugger probe.
    - CYW989820EVB-01: SWDCK (P02) is routed to the J13 DEBUG connector, but not SWDIO. Add a wire from J10 pin 3 (PUART CTS) to J13 pin 2 to connect GPIO P10 to SWDIO.
    - CYW920719B2Q40EVB-01: PUART RX/TX signals are shared with SWDCK and SWDIO. Remove RX and TX jumpers on J10 when using SWD. PUART and SWD cannot be used simultaneously on this board unless these pins are changed from the default configuration.
-   - CYW920721B2EVK-02: SWD signals are shared with D4 and D5, see SW9 in schematics.
    - CYW920721M2EVK-02/CYW920721M2EVB-03: The default setup uses P03 for SWDIO and P05 for SWDCK. Check the position of SW15 if using JLink with the DEBUG connector.
    - CYW920706WCDEVAL: SWD debugging requires fly-wire connections. The default setup P15 (J22 pin 3 or J24 pin 1) for SWDIO and P11 (J23 pin 5
     or J22 pin 4) for SWDCK.
    - CYW920735Q60EVB-01: SWD hardware debugging supported. The default setup uses the J13 debug header, P3 (J13 pin 2) for SWDIO and P2 (J13 pin 4) for SWDCK.  They can be optionally routed to D4 and D4 on the Arduino header J4, see SW9 in schematics.
    - CYW920736M2EVB-01: SWD hardware debugging requires fly-wire connections. The only option is using P14 for SWDCK and P15 for SWDIO. These route to Arduino header J2, A1 and A0. These can be fly-wired to Arduino header J4, D4 and D5. From there the signals connect to the KitProg3 SWD bridge. In addition, the debug macros (SETUP\_APP\_FOR\_DEBUG\_IF\_DEBUG\_ENABLED and BUSY\_WAIT\_TILL\_MANUAL\_CONTINUE\_IF\_DEBUG\_ENABLED) are placed in sparinit.c in code common to all applications for this device. Most applications for this device call bleprofile\_GPIOInit() in subsequent code, overwriting the SWD pin configuration. To use hardware debugging after the call to bleprofile\_GPIOInit(), place the debug macros in code after that call.
+   - CYW943012B2EVK-01: SWD signals are shared with D4 and D5.
+   - CYW920820M2EVB-01: The default setup uses P03 for SWDIO and P02 for SWDCK. Check the position of SW15 if using JLink with the DEBUG connector.
    - SWD hardware debugging is not supported on the following:
    >- CYW920721M2EVK-01
    >- CYW920835REF-RCU-01
    >- CYW920819REF-KB-01
    >- CYW9M2BASE-43012BT
-   >- CYW943012BTEVK-01
    >- CYBT-423054-EVAL
    >- CYBT-423060-EVAL
    >- CYBT-483056-EVAL
@@ -312,22 +337,22 @@ Note: this is a list of all features and profiles supported in BTSDK, but some A
 
 ## List of boards available for use with BTSDK
 
-- [CYW20819A1 chip](https://github.com/cypresssemiconductorco/20819A1)
-    - [CYW920819EVB-02](https://github.com/cypresssemiconductorco/TARGET_CYW920819EVB-02), [CYBT-213043-MESH](https://github.com/cypresssemiconductorco/TARGET_CYBT-213043-MESH), [CYBT-213043-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-213043-EVAL), [CYW920819REF-KB-01](https://github.com/cypresssemiconductorco/TARGET_CYW920819REF-KB-01), [CYBT-223058-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-223058-EVAL), [CYBT-263065-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-263065-EVAL), [CYBT-273063-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-273063-EVAL)
-- [CYW20820A1 chip](https://github.com/cypresssemiconductorco/20820A1)
-    - [CYW920820EVB-02](https://github.com/cypresssemiconductorco/TARGET_CYW920820EVB-02), [CYW989820EVB-01](https://github.com/cypresssemiconductorco/TARGET_CYW989820EVB-01), [CYBT-243053-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-243053-EVAL), [CYBT-253059-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-253059-EVAL)
-- [CYW20721B2 chip](https://github.com/cypresssemiconductorco/20721B2)
-    - [CYW920721B2EVK-02](https://github.com/cypresssemiconductorco/TARGET_CYW920721B2EVK-02), [CYW920721M2EVK-01](https://github.com/cypresssemiconductorco/TARGET_CYW920721M2EVK-01), [CYW920721M2EVK-02](https://github.com/cypresssemiconductorco/TARGET_CYW920721M2EVK-02), [CYW920721M2EVB-03](https://github.com/Infineon/TARGET_CYW920721M2EVB-03), [CYBT-423060-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-423060-EVAL), [CYBT-483062-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-483062-EVAL), [CYBT-413061-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-413061-EVAL)
-- [CYW20719B2 chip](https://github.com/cypresssemiconductorco/20719B2)
-    - [CYW920719B2Q40EVB-01](https://github.com/cypresssemiconductorco/TARGET_CYW920719B2Q40EVB-01), [CYBT-423054-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-423054-EVAL), [CYBT-413055-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-413055-EVAL), [CYBT-483056-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-483056-EVAL)
-- [CYW20706A2 chip](https://github.com/cypresssemiconductorco/20706A2)
-    - [CYW920706WCDEVAL](https://github.com/cypresssemiconductorco/TARGET_CYW920706WCDEVAL), [CYBT-353027-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-353027-EVAL), [CYBT-343026-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-343026-EVAL), [CYBT-333047-EVAL](https://github.com/Infineon/TARGET_CYBT-333047-EVAL)
-- [CYW20735B1 chip](https://github.com/cypresssemiconductorco/20735B1)
-    - [CYW920735Q60EVB-01](https://github.com/cypresssemiconductorco/TARGET_CYW920735Q60EVB-01), [CYBT-343052-EVAL](https://github.com/cypresssemiconductorco/TARGET_CYBT-343052-EVAL)
-- [CYW20835B1 chip](https://github.com/cypresssemiconductorco/20835B1)
-    - [CYW920835REF-RCU-01](https://github.com/cypresssemiconductorco/TARGET_CYW920835REF-RCU-01), [CYW920835M2EVB-01](https://github.com/cypresssemiconductorco/TARGET_CYW920835M2EVB-01), [CYBLE-343072-EVAL-M2B](https://github.com/Infineon/TARGET_CYBLE-343072-EVAL-M2B), [CYBLE-333074-EVAL-M2B](https://github.com/Infineon/TARGET_CYBLE-333074-EVAL-M2B), [CYBLE-343072-MESH](https://github.com/Infineon/TARGET_CYBLE-343072-MESH)
-- [CYW43012C0 chip](https://github.com/cypresssemiconductorco/43012C0)
-    - [CYW9M2BASE-43012BT](https://github.com/cypresssemiconductorco/TARGET_CYW9M2BASE-43012BT), [CYW943012BTEVK-01](https://github.com/cypresssemiconductorco/TARGET_CYW943012BTEVK-01)
+- [CYW20819A1 chip](https://github.com/Infineon/20819A1)
+    - [CYW920819EVB-02](https://github.com/Infineon/TARGET_CYW920819EVB-02), [CYBT-213043-MESH](https://github.com/infineon/TARGET_CYBT-213043-MESH), [CYBT-213043-EVAL](https://github.com/infineon/TARGET_CYBT-213043-EVAL), [CYW920819REF-KB-01](https://github.com/infineon/TARGET_CYW920819REF-KB-01), [CYBT-223058-EVAL](https://github.com/infineon/TARGET_CYBT-223058-EVAL), [CYBT-263065-EVAL](https://github.com/infineon/TARGET_CYBT-263065-EVAL), [CYBT-273063-EVAL](https://github.com/infineon/TARGET_CYBT-273063-EVAL)
+- [CYW20820A1 chip](https://github.com/infineon/20820A1)
+    - [CYW920820EVB-02](https://github.com/infineon/TARGET_CYW920820EVB-02), [CYW989820EVB-01](https://github.com/infineon/TARGET_CYW989820EVB-01), [CYBT-243053-EVAL](https://github.com/infineon/TARGET_CYBT-243053-EVAL), [CYBT-253059-EVAL](https://github.com/infineon/TARGET_CYBT-253059-EVAL), [CYW920820M2EVB-01](https://github.com/Infineon/TARGET_CYW920820M2EVB-01)
+- [CYW20721B2 chip](https://github.com/infineon/20721B2)
+    - [CYW920721M2EVK-01](https://github.com/infineon/TARGET_CYW920721M2EVK-01), [CYW920721M2EVK-02](https://github.com/infineon/TARGET_CYW920721M2EVK-02), [CYW920721M2EVB-03](https://github.com/Infineon/TARGET_CYW920721M2EVB-03), [CYBT-423060-EVAL](https://github.com/infineon/TARGET_CYBT-423060-EVAL), [CYBT-483062-EVAL](https://github.com/infineon/TARGET_CYBT-483062-EVAL), [CYBT-413061-EVAL](https://github.com/infineon/TARGET_CYBT-413061-EVAL)
+- [CYW20719B2 chip](https://github.com/infineon/20719B2)
+    - [CYW920719B2Q40EVB-01](https://github.com/infineon/TARGET_CYW920719B2Q40EVB-01), [CYBT-423054-EVAL](https://github.com/infineon/TARGET_CYBT-423054-EVAL), [CYBT-413055-EVAL](https://github.com/infineon/TARGET_CYBT-413055-EVAL), [CYBT-483056-EVAL](https://github.com/infineon/TARGET_CYBT-483056-EVAL)
+- [CYW20706A2 chip](https://github.com/infineon/20706A2)
+    - [CYW920706WCDEVAL](https://github.com/infineon/TARGET_CYW920706WCDEVAL), [CYBT-353027-EVAL](https://github.com/infineon/TARGET_CYBT-353027-EVAL), [CYBT-343026-EVAL](https://github.com/infineon/TARGET_CYBT-343026-EVAL), [CYBT-333047-EVAL](https://github.com/Infineon/TARGET_CYBT-333047-EVAL)
+- [CYW20735B1 chip](https://github.com/infineon/20735B1)
+    - [CYW920735Q60EVB-01](https://github.com/infineon/TARGET_CYW920735Q60EVB-01), [CYBT-343052-EVAL](https://github.com/infineon/TARGET_CYBT-343052-EVAL)
+- [CYW20835B1 chip](https://github.com/infineon/20835B1)
+    - [CYW920835REF-RCU-01](https://github.com/infineon/TARGET_CYW920835REF-RCU-01), [CYW920835M2EVB-01](https://github.com/infineon/TARGET_CYW920835M2EVB-01), [CYBLE-343072-EVAL-M2B](https://github.com/Infineon/TARGET_CYBLE-343072-EVAL-M2B), [CYBLE-333074-EVAL-M2B](https://github.com/Infineon/TARGET_CYBLE-333074-EVAL-M2B), [CYBLE-343072-MESH](https://github.com/Infineon/TARGET_CYBLE-343072-MESH)
+- [CYW43012C0 chip](https://github.com/infineon/43012C0)
+    - [CYW9M2BASE-43012BT](https://github.com/Infineon/TARGET_CYW9M2BASE-43012BT), [CYW943012BTEVK-01](https://github.com/Infineon/TARGET_CYW943012BTEVK-01)
 - [CYW20736A1 chip](https://github.com/Infineon/20736A1)
     - [CYW920736M2EVB-01](https://github.com/Infineon/TARGET_CYW920736M2EVB-01)
 - [CYW30739A0 chip](https://github.com/Infineon/30739A0)
@@ -346,7 +371,7 @@ This folder contains the files that are needed to build the embedded Bluetooth&#
 
 * baselib: Files for chips supported by BTSDK. For example CYW20819, CYW20719, CYW20706, etc.
 
-* bsp: Files for BSPs (platforms) supported by BTSDK. For example CYW920819EVB-02, CYW920721B2EVK-02, CYW920706WCDEVAL etc.
+* bsp: Files for BSPs (platforms) supported by BTSDK. For example CYW920819EVB-02, CYW920706WCDEVAL etc.
 
 * btsdk-include: Common header files needed by all apps and libraries.
 
@@ -490,12 +515,12 @@ To create a custom pin configuration to be used by multiple applications using a
 
 To create a custom configuration to be used by a single application from an existing BSP that supports Device Configurator, perform the following steps:
 
-1. Create a folder COMPONENT\_(BSP)\_design\_modus in your application. For example COMPONENT\_CYW920721B2EVK-02\_design\_modus
+1. Create a folder COMPONENT\_(BSP)\_design\_modus in your application. For example COMPONENT\_CYW920721M2EVK-02\_design\_modus
 2. Copy the file design.modus from the reference BSP under mtb\_shared\wiced\_btsdk\dev-kit\bsp\ and place the file in this folder.
 3. In the application makefile, add the following two lines<br/>
    DISABLE\_COMPONENTS+=bsp\_design\_modus<br/>
    COMPONENTS+=(BSP)\_design\_modus<br/>
-   (for example COMPONENTS+=CYW920721B2EVK-02\_design\_modus)
+   (for example COMPONENTS+=CYW920721M2EVK-02\_design\_modus)
 4. Update design.modus for your custom pin configuration if needed using the **Device Configurator** link under **Configurators** in the Quick Panel.
 5. Building of the application will generate pin configuration source code under the GeneratedSource folder in your application.
 
@@ -508,8 +533,8 @@ The libraries needed by the app can be found in in the mtb\_shared\wiced\_btsdk\
 
 ## Documentation
 
-BTSDK API documentation is available [online](https://cypresssemiconductorco.github.io/btsdk-docs/BT-SDK/index.html)
+BTSDK API documentation is available [online](https://infineon.github.io/btsdk-docs/BT-SDK/index.html)
 
-Note: For offline viewing, git clone the [documentation repo](https://github.com/cypresssemiconductorco/btsdk-docs)
+Note: For offline viewing, git clone the [documentation repo](https://github.com/Infineon/btsdk-docs)
 
-BTSDK Technical Brief and Release Notes are available [online](https://community.cypress.com/community/software-forums/modustoolbox-bt-sdk)
+BTSDK Technical Brief and Release Notes are available [online](https://community.infineon.com/t5/Bluetooth-SDK/bd-p/ModusToolboxBluetoothSDK)

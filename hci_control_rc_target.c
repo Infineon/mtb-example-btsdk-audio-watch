@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -130,7 +130,7 @@ void app_avrc_track_info_cmd(uint8_t *p_data, uint16_t payload_len)
     uint8_t   attr_id;
     uint8_t   str_len;
     uint16_t  copy_len;
-    wiced_bt_avrc_tg_track_attr_t track_attr;
+    wiced_bt_avrc_tg_track_attr_t track_attr = {0};
 
     /* While there is at least enough payload left for an attribute id and length ... */
     while (payload_len != commandBytes)

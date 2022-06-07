@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -42,6 +42,7 @@
 #include "hci_control_api.h"
 #include "hci_control_test.h"
 #include "wiced_transport.h"
+#include "app.h"
 
 /******************************************************************************
  *                          Constants
@@ -55,10 +56,6 @@
  ******************************************************************************/
 static void hci_control_send_encapsulated_hci_event( uint8_t * p_data, uint16_t length );
 static void wiced_bt_send_test_command( uint16_t opcode, uint8_t* params, uint8_t params_length );
-
-#ifndef BTSTACK_VER
-extern void btu_hcif_send_cmd (uint8_t controller_id, BT_HDR *p_buf);
-#endif
 
 /******************************************************************************
  *                          Variable Definitions
@@ -127,35 +124,7 @@ static void wiced_bt_send_test_command( uint16_t opcode, uint8_t* params, uint8_
     }
     else
     {
-#if BTSTACK_VER >= 0x03000001
-        /* TODO: allocate buffer for sending HCI command */
-
-#else
-        BT_HDR  *p_command;
-        uint8_t *p;
-
-        if ( ( p_command = HCI_GET_CMD_BUF( params_length ) ) == NULL )
-        {
-            hci_control_send_command_status_evt( HCI_CONTROL_EVENT_COMMAND_STATUS, HCI_CONTROL_STATUS_FAILED );
-            return;
-        }
-
-        p = ( uint8_t * )( p_command + 1 );
-
-        p_command->event  = BT_EVT_TO_LM_HCI_CMD;
-        p_command->len    = HCIC_PREAMBLE_SIZE + params_length;
-        p_command->offset = 0;
-
-        UINT16_TO_STREAM( p, opcode );
-        UINT8_TO_STREAM( p, params_length );
-
-        if ( params_length )
-        {
-            ARRAY_TO_STREAM( p, params, params_length );
-        }
-
-        btu_hcif_send_cmd (LOCAL_BR_EDR_CONTROLLER_ID,  p_command);
-#endif
+        app_btu_hcif_send_cmd( opcode, params, params_length );
     }
 
     test_command.test_executing = WICED_TRUE;

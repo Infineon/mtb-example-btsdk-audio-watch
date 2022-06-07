@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -47,8 +47,11 @@
 #include "wiced_memory.h"
 #include "hci_control.h"
 #if defined(CYW20721B2) || defined(CYW43012C0)
+#define HFP_VOLUME_HIGH 15
 #include "wiced_audio_manager.h"
 #endif
+
+#include "hci_control_audio.h"
 
 /******************************************************
  *               Variables Definitions
@@ -757,6 +760,24 @@ void hci_control_hf_handle_command(uint16_t opcode, uint8_t* p_data, uint32_t le
     }
 }
 
+#if defined(CYW20721B2) || defined(CYW43012C0)
+static int32_t handsfree_utils_hfp_volume_to_am_volume(int32_t vol)
+{
+    uint32_t remainder;
+    int32_t am_level;
+
+    am_level    = (vol * AM_VOL_LEVEL_HIGH) / HFP_VOLUME_HIGH;
+    remainder   = (vol * AM_VOL_LEVEL_HIGH) % HFP_VOLUME_HIGH;
+
+    if (remainder >= AM_VOL_LEVEL_HIGH)
+    {
+        am_level++;
+    }
+
+    return am_level;
+}
+#endif
+
 /*
  * Process SCO management callback
  */
@@ -788,8 +809,8 @@ void hci_control_hf_sco_management_callback( wiced_bt_management_evt_t event, wi
                 audio_config.sr = AM_PLAYBACK_SR_8K;
             }
 
-            audio_config.volume = AM_VOL_LEVEL_HIGH - 2;
-            audio_config.mic_gain = AM_VOL_LEVEL_HIGH - 2;
+            audio_config.volume = handsfree_utils_hfp_volume_to_am_volume(AM_VOL_LEVEL_HIGH - 2);
+            audio_config.mic_gain = handsfree_utils_hfp_volume_to_am_volume(AM_VOL_LEVEL_HIGH - 2);
 
             if( WICED_SUCCESS != wiced_am_stream_set_param(stream_id, AM_AUDIO_CONFIG, &audio_config))
                 WICED_BT_TRACE("wiced_am_set_param failed\n");
@@ -841,6 +862,7 @@ void hci_control_hf_sco_management_callback( wiced_bt_management_evt_t event, wi
                 wiced_stop_timer(&handsfree_app_states.hfp_timer);
             }
 
+            a2dp_app_hci_control_audio_stop();
             if(handsfree_app_states.connect.profile_selected == WICED_BT_HFP_PROFILE)
             {
                 wiced_bt_sco_accept_connection(p_event_data->sco_connection_request.sco_index, HCI_SUCCESS, (wiced_bt_sco_params_t *) &handsfree_esco_params);

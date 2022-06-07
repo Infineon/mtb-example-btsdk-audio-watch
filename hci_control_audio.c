@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -58,7 +58,7 @@
 #endif
 #include "wiced_bt_a2d.h"
 #include "wiced_transport.h"
-#if ( defined(CYW20706A2) || defined(CYW20719B1) || defined(CYW20719B2) || defined(CYW43012C0) || defined(CYW20721B1) || defined(CYW20721B2) || defined(CYW20819A1) || BTSTACK_VER >= 0x03000001 )
+#if ( defined(CYW20706A2) || defined(CYW20719B1) || defined(CYW20719B2) || defined(CYW43012C0) || defined(CYW20721B1) || defined(CYW20721B2) || defined(CYW20819A1) )
 #include "wiced_bt_event.h"
 #endif
 #ifdef CYW9BT_AUDIO
@@ -69,6 +69,8 @@
 #include "wiced_hal_cpu_clk.h"
 #include "wiced_bt_mp3_decoder.h"
 #endif // MP3_DECODER_INCLUDED
+
+#include "app.h"
 
 /******************************************************************************
  *                          Constants
@@ -212,13 +214,13 @@ static wiced_result_t av_app_disconnect_connection( void );
 static wiced_result_t av_app_reconfigure_req( uint8_t new_sf, uint8_t new_chcfg );
 static wiced_result_t av_app_send_close_req(void);
 
-static void av_app_idle_suspend_timeout ( uint32_t arg );
+static void av_app_idle_suspend_timeout ( TIMER_PARAM_TYPE arg );
 static wiced_result_t av_app_start_audio( void );
 static wiced_bool_t av_app_set_audio_streaming(wiced_bool_t start_audio);
 static wiced_result_t av_app_send_suspend_req(void);
 
 static uint16_t a2dp_app_create_sep( void );
-static void av_app_send_setconfiguration( uint32_t cb_params );
+static void av_app_send_setconfiguration( TIMER_PARAM_TYPE cb_params );
 uint8_t BTM_SetPacketTypes (BD_ADDR remote_bda, uint16_t pkt_types);
 wiced_result_t av_app_initiate_sdp( BD_ADDR bda );
 #ifdef CYW9BT_AUDIO
@@ -574,7 +576,7 @@ static wiced_bool_t av_app_sbc_format_check( uint8_t *peer_codec_info, wiced_bt_
     return ret_val;
 }
 
-static void av_app_send_setconfiguration( uint32_t cb_params )
+static void av_app_send_setconfiguration( TIMER_PARAM_TYPE cb_params )
 {
     wiced_bt_avdt_cfg_t *peercaps = NULL;
     int i;
@@ -1695,7 +1697,7 @@ static wiced_result_t av_app_reconfigure_req(uint8_t new_sf, uint8_t new_chcfg)
 * Sends request to suspend a started stream to a peer device when a (3 second)
 * timer expires. Initiated from av_app_stop_audio.
 */
-static void av_app_idle_suspend_timeout ( uint32_t arg )
+static void av_app_idle_suspend_timeout ( TIMER_PARAM_TYPE arg )
 {
     WICED_BT_TRACE( "[%s] \n", __FUNCTION__ );
 
@@ -2319,12 +2321,7 @@ void avdt_init( )
     av_app_cb.avdt_register.sig_tout  = AV_SIG_TOUT;        /* AV_SIG_TOUT = 4 */
     av_app_cb.avdt_register.idle_tout = AV_IDLE_TOUT;       /* AV_IDLE_TOUT = 10 */
     /* Security mask, AV_SEC_MASK = none */
-#if BTSTACK_VER >= 0x03000001
-    av_app_cb.avdt_register.sec_mask  = wiced_bt_cfg_settings.security_required;
-#else
-    av_app_cb.avdt_register.sec_mask  = wiced_bt_cfg_settings.security_requirement_mask;
-#endif
-
+    av_app_cb.avdt_register.sec_mask  = app_cfg_sec_mask();
     /* Stream connection parameters */
     memset(&av_app_cb.stream_cb, 0, sizeof(wiced_bt_avdt_cs_t));
 
@@ -2332,11 +2329,7 @@ void avdt_init( )
     av_app_cb.stream_cb.cfg.num_protect = 0;
     av_app_cb.stream_cb.tsep            = AVDT_TSEP_SRC;          /* AVDT_TSEP_SRC: Source SEP, AVDT_TSEP_SNK : : Sink SEP */
     av_app_cb.stream_cb.nsc_mask        = AVDT_NSC_RECONFIG;      /* Reconfigure command not supported */
-#if BTSTACK_VER >= 0x03000001
-    av_app_cb.stream_cb.p_avdt_ctrl_cback    = av_app_proc_stream_evt; /* AVDT event callback */
-#else
-    av_app_cb.stream_cb.p_ctrl_cback    = av_app_proc_stream_evt; /* AVDT event callback */
-#endif
+    av_app_cb.stream_cb.APP_AVDT_CB     = av_app_proc_stream_evt; /* AVDT event callback */
     av_app_cb.stream_cb.cfg.psc_mask    = AVDT_PSC_TRANS|AVDT_PSC_DELAY_RPT;         /* Protocol service capabilities = Media transport and Delay Report*/
     av_app_cb.stream_cb.media_type      = AVDT_MEDIA_AUDIO;       /* AVDT_MEDIA_AUDIO, AVDT_MEDIA_VIDEO, AVDT_MEDIA_MULTI */
     //av_app_cb.stream_cb.mtu             = L2CAP_DEFAULT_MTU;      /* AV_DATA_MTU; */
@@ -2759,3 +2752,27 @@ static uint8_t hci_control_audio_mp3_utils_sampling_rate_to_a2d_format(wiced_bt_
 }
 
 #endif // MP3_DECODER_INCLUDED
+
+void a2dp_app_hci_control_audio_stop(void)
+{
+    WICED_BT_TRACE("[%s] state: %s\n\r", __FUNCTION__, dump_state_name(av_app_cb.state));
+
+    if (av_app_cb.state == AV_STATE_STARTED)
+    {
+        // When stopping audio to a headset, we will allow back 3mbps modulation packets
+        // 2mbps and 3mbps packets are implicitly enabled (negative logic)
+        BTM_SetPacketTypes(av_app_cb.peer_bda,
+                HCI_PKT_TYPES_MASK_DM5 | HCI_PKT_TYPES_MASK_DH5 | /* Use 1 mbps 5 slot packets */
+                HCI_PKT_TYPES_MASK_DH3 | HCI_PKT_TYPES_MASK_DM3 | /* Use 1 mbps 3 slot packets */
+                HCI_PKT_TYPES_MASK_DH1 | HCI_PKT_TYPES_MASK_DM1); /* Use 1 mbps 1 slot packets */
+
+        /* Note that the host requested to stop streaming. */
+        av_app_cb.is_host_streaming = WICED_FALSE;
+
+        /* If in the middle of a reconfigure cycle, stop it */
+        av_app_cb.reconfigure = WICED_FALSE;
+        av_app_cb.is_interrupted = WICED_FALSE;
+
+        av_app_stop_audio( WICED_FALSE );
+    }
+}

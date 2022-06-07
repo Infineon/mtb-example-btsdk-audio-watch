@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -60,6 +60,7 @@ typedef union
 extern void panu_hci_send_panu_event(uint16_t evt, uint16_t handle, panu_event_t *p_data);
 extern void panu_connected(BD_ADDR bd_addr);
 extern void panu_disconnected(uint16_t handle);
+extern void panu_connect_failed(uint16_t handle);
 extern void hci_control_panu_init( void );
 extern void hci_control_panu_handle_command(uint16_t opcode, uint8_t* p_data, uint32_t length);
 extern void hci_control_panu_set_pfilter(uint16_t handle);
