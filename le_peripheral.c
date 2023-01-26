@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2023, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -36,7 +36,7 @@
 * Watch Reference application
 *
 * The watch reference application combines multiple services and clients
-* commonly used in the BLE watches including Apple's vendor specific ANCS,
+* commonly used in Bluetooth LE watches including Apple's vendor specific ANCS,
 * AMS, and Time.  Device works in the
 * peripheral mode accepting connection from central typically a phone.
 * The GATT database for the device includes definitions for all services.

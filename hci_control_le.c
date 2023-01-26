@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2023, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -35,7 +35,7 @@
 
 /** @file
  *
- * This file implement BTLE application controlled over UART.
+ * This file implement a Bluetooth LE application controlled over UART.
  * The GATT database is defined in this file and is not changed by the MCU.
  *
  */
@@ -1432,7 +1432,7 @@ void hci_control_le_handle_get_identity_address ( BD_ADDR bd_addr )
  */
 static void hci_control_le_handle_set_channel_classification ( uint8_t ble_channel_map[ BTM_BLE_CHNL_MAP_SIZE ] )
 {
-    WICED_BT_TRACE("Setting ble channel classification [ %02x %02x %02x %02x %02x]\n",
+    WICED_BT_TRACE("Setting LE channel classification [ %02x %02x %02x %02x %02x]\n",
                     ble_channel_map[0], ble_channel_map[1], ble_channel_map[2], ble_channel_map[3], ble_channel_map[4] );
 
     wiced_bt_ble_set_channel_classification( ble_channel_map );

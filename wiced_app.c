@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2023, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -91,7 +91,7 @@ static wiced_result_t btm_enabled_event_handler(wiced_bt_dev_enabled_t *event_da
 WICED_MEM_PRE_INIT_CONTROL g_mem_pre_init =
 {
     .max_ble_connections = WICED_MEM_PRE_INIT_IGNORE,
-    .max_peripheral_piconet = WICED_MEM_PRE_INIT_IGNORE, /* use to reduce bt connections */
+    .max_peripheral_piconet = WICED_MEM_PRE_INIT_IGNORE, /* use to reduce Bluetooth connections */
     .max_resolving_list = WICED_MEM_PRE_INIT_IGNORE,
     .onfound_list_len = 0,
     .max_multi_adv_instances = WICED_MEM_PRE_INIT_IGNORE,
@@ -157,7 +157,7 @@ APPLICATION_START()
     le_peripheral_app_init();
 #endif
 #ifndef DEBUG
-    //Enable the bt coex functionality
+    //Enable the Bluetooth coex functionality
 //    wiced_bt_coex_enable();
 #endif
 
@@ -313,7 +313,7 @@ wiced_result_t btm_event_handler(wiced_bt_management_evt_t event, wiced_bt_manag
             break;
 
         case BTM_PAIRING_IO_CAPABILITIES_BLE_REQUEST_EVT:
-            /* Use the default security for BLE */
+            /* Use the default security for LE */
             WICED_BT_TRACE("BTM_PAIRING_IO_CAPABILITIES_BLE_REQUEST_EVT bda %B\n",
                     p_event_data->pairing_io_capabilities_ble_request.bd_addr);
             p_event_data->pairing_io_capabilities_ble_request.local_io_cap  = BTM_IO_CAPABILITIES_DISPLAY_AND_YES_NO_INPUT;
@@ -419,7 +419,7 @@ wiced_result_t btm_event_handler(wiced_bt_management_evt_t event, wiced_bt_manag
             break;
 
         case BTM_BLE_CONNECTION_PARAM_UPDATE:
-            WICED_BT_TRACE ("BTM BLE Connection Update event status %d BDA [%B] interval %d latency %d supervision timeout %d \n",
+            WICED_BT_TRACE ("BTM LE Connection Update event status %d BDA [%B] interval %d latency %d supervision timeout %d \n",
                                 p_event_data->ble_connection_param_update.status, p_event_data->ble_connection_param_update.bd_addr,
                                 p_event_data->ble_connection_param_update.conn_interval, p_event_data->ble_connection_param_update.conn_latency,
                                 p_event_data->ble_connection_param_update.supervision_timeout);

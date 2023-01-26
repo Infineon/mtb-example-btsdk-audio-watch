@@ -19,8 +19,8 @@ To demonstrate the app, follow these steps:
 
 1. Build and download the application to the AIROC&#8482; board.
 2. Open the ClientControl application
-     - [UART] Open the "WICED HCI" port for the device.(Default baud rate configured in the application is defined by the BSP HCI\_UART\_DEAULT\_BAUD #define, usually either 3M or 115200 depending on the board UART capabilities.)
-     - [SPI] Open the "WICED PUART" port for the SPI master device (using 115200 baudrate and without flow control). Refer the instructions below for SPI setup (supported on 20719B2 only)
+     - [UART] Open the "WICED HCI" port for the device. (Default baud rate configured in the application is defined by the BSP HCI\_UART\_DEAULT\_BAUD #define, usually either 3M or 115200 depending on the board UART capabilities.)
+     - [SPI] Open the "WICED PUART" port for the SPI master device (using 115200 baud rate and without flow control). Refer to the instructions below for SPI setup (supported on 20719B2 only)
 3. Use the ClientControl application to send various commands as mentioned below.
 4. Run the BTSpy program to view protocol and application traces.
 
@@ -57,9 +57,9 @@ To demonstrate the app, follow these steps:
 
 BR/EDR Audio Source and AVRC Target:
 
-- The Watch app can demonstrate how use to BR/EDR Audio Source and AVRC TG profiles.
+- The Watch app can demonstrate how to use BR/EDR Audio Source and AVRC TG profiles.
 - Audio Source can use I2S interrupt or SW timer to decide the timing to read PCM.
-  For media type as 'I2S input', it will use I2S interrupt, and you need to configure 4 gpios as AIROC&#8482; I2S PINs.
+  For media type as 'I2S input', it will use I2S interrupt, and you need to configure 4 GPIOs as AIROC&#8482; I2S PINs.
   For media type as 'Wav file' or 'Sine wave', it will use SW timer by calling wiced\_audio\_use\_sw\_timing(1).
   In general, if using the "WICED HCI" UART to transmit audio, it must either allocate I2S pins on unused pins for
   I2S interrupt OR use wiced\_audio\_use\_sw\_timing(1) to enable SW timer.
@@ -69,11 +69,13 @@ BR/EDR Audio Source and AVRC Target:
 - To play music from a .wav file, select the Media type as File, browse and select a .wav file,
   and set the audio frequency to the desired value (48kHz, 44.1kHz, etc.)
   In this case, audio for the .wav file is routed over the "WICED HCI" UART to the AIROC&#8482; board.<br>
-  sinc\_44100\_16\_L440\_R1000\_50s\_stereo.wav in app folder can be used as the input of 44.1KHz 16bits stereo samples.
+
+sinc\_44100\_16\_L440\_R1000\_50s\_stereo.wav in the app folder can be used as the input of 44.1KHz 16bits stereo samples.
 - To play music from a .mp3 file, select the Media type as File, browse and select a .mp3 file,
   and set the audio frequency to the desired value (48kHz, 44.1kHz, etc.)
   In this case, audio for the .mp3 file is routed over the "WICED HCI" UART to the AIROC&#8482; board.
-  sinc\_44100\_mono.mp3, sinc\_44100\_stereo.mp3, sinc\_48000\_mono.mp3 and sinc\_48000\_stereo.mp3 in MP3\_sample folder
+
+sinc\_44100\_mono.mp3, sinc\_44100\_stereo.mp3, sinc\_48000\_mono.mp3 and sinc\_48000\_stereo.mp3 in MP3\_sample folder
   can be used as the input of 44.1KHz/48kHz Mono/stereo samples.
   Use only the .mp3 files provided with the application in the 'MP3_samples' folder.
 - To play music from the Line-In jack, select the Media type as 'I2S input' and set the
@@ -87,7 +89,7 @@ BR/EDR Audio Source and AVRC Target:
 - The WatchAma app uses the AVRCP Target role. Once connected to a headset/speaker,
   the app can send notifications for play status changes (Play, Pause, Stop) and
   settings changes (Repeat, Shuffle) to the peer AVRCP controller (such as a headset/speaker).<br/>
-  Note: the songs shown in the AVRC TG UI and some settings such Repeat/Shuffle are for testing
+  Note: the songs are shown in the AVRC TG UI and some settings such as Repeat/Shuffle are for testing
   AVRC commands only, they do not indicate the actual media played and will not change the media played.
 
 BR/EDR AVRCP Controller:
@@ -99,8 +101,8 @@ BR/EDR AVRCP Controller:
 - Use the buttons in the ClientControl AVRC CT tab to Connect and accept pairing.
 - Play music on the audio source device and control the music via buttons in the AVRC CT tab.
 - In Controller mode, pass-thru commands are executed via Play, Pause, Stop, etc. buttons.
-- Absolute volume change can be done via the drop down Volume or Vol Up/Down buttons.
-- Note that iPhone does does not support Vol buttons.
+- Absolute volume change can be done via the drop-down Volume or Vol Up/Down buttons.
+- Note that iPhone does not support Vol buttons.
 - Note that music will continue to play on the audio source device.
 
 iOS ANCS and AMS GATT Services:
@@ -109,61 +111,61 @@ iOS ANCS and AMS GATT Services:
 - Disconnect all devices if any are connected.
 - Select Pairable if it is not checked.
 - Click the "Start Adverts" button in the GATT tab.
-- Set MAX_PHONE_CONNECTIONS for support more than one iPhone.
+- Set MAX_PHONE_CONNECTIONS for support of more than one iPhone.
 - From an iPhone app such as 'LightBlue', find and connect to the 'Watch' app.
 - Allow pairing with the iPhone.
 - AMS:
-  - Play media on each iPhone. Play,Pause,Prev,Next,Vol Up,Vol Down notification message will be displayed on the UI.
-  - Use buttons like Play,Pause,Prev,Next,Vol Up,Vol Down in the ClientControl AVRC CT tab to control the music.
+  - Play media on each iPhone. Play, Pause, Prev, Next, Vol Up, Vol Down notification messages will be displayed on the UI.
+  - Use buttons like Play, Pause, Prev, Next, Vol Up, and Vol Down in the ClientControl AVRC CT tab to control the music.
   - Note that music will continue to play on iPhone.
 - ANCS:
-  - Incoming calls and messages to the each iPhone notification message will be displayed on the UI.
+  - Incoming calls and messages to each iPhone notification message will be displayed on the UI.
   - Make an incoming call to each iPhone. See a call notification displayed on the UI to accept or reject the call. Similarly, missed call notifications are seen.
   - Send an SMS message to each iPhone to see a message notification.
 
 LE Client:
 
 - The Watch app can demonstrate LE Client functionality as shown below.
-- Make sure there is a Bluetooth&#174; device with GATT services that is advertising. For example use an app
+- Make sure there is a Bluetooth&#174; device with GATT services that is advertising. For example, use an app
   such as 'LightBlue' on your phone and create a 'Virtual Peripheral' such as 'Blood Pressure'.
 - To find GATT devices:
   - Click on the "Start" button for the "LE Discovery" combo box.
   - Click on the "Stop" button to end discovery.
 - To connect an LE device:
-  - Choose a device from the "LE Discovery" drop down combo box and click the "Connect" button.
+  - Choose a device from the "LE Discovery" drop-down combo box and click the "Connect" button.
 - To discover services: Click on the "Discover Services" button
 - To discover characteristics: Enter the handles in the edit box and click
   on "Discover Characteristics"
 - To discover descriptors: Enter the handles in the edit box and click on
   "Discover Descriptors"
 - Enter the Handle and Hex Value to write to the remote device using buttons:
-  - "Write" : Write a hex value to the remote handle
-  - "Write no rsp" : Write a hex value without a response to the remote handle
-  - "Value Notify" : Write a notification value to the remote handle
-  - "Value Indicate" : Write an indication value to the remote handle
+  - "Write": Write a hex value to the remote handle
+  - "Write no rsp": Write a hex value without a response to the remote handle
+  - "Value Notify": Write a notification value to the remote handle
+  - "Value Indicate": Write an indication value to the remote handle
 
 Personal Access Network
 
-- We only implement PANU and PANNAP function for watch project on CYW943012BTEVK.
-- Because 43012C0 memory is not enough, so modify makefile to disable some feature:
+- The PANU and PANNAP functions for the watch application are available only on the CYW920721M2EVK-01 board.
+- Modify makefile to disable some features that are not related to PAN. This will reduce memory requirement of this application.
   - "LE\_INCLUDED=0"
   - "ANCS\_INCLUDED=0"
   - "AMS\_INCLUDED=0"
-- Modify makefile to open PANU function:
+- Modify makefile as below to enable the PANU function:
   - "PANU\_SUPPORT=1"
   - "PANNAP\_SUPPORT=0"
-- After compile and download image to 43012C0 board, open ClientControl.exe.
-- Click "start" button to scan "PANNAP" device.
-- Make sure one "PANNAP" device is available, for iphone example: enter into "settings" "personal hotspot" "allow others to join" "turn on wlan and bluetooth".
-- In ClientControl, if "PANNAP" device is discovered, then enter into "PANU" tab, and click "connect" button.
-- If PANU of 43012C0 is connected to "PANNAP" device, you can click "disconnect" button to disconnect the PAN connection.
-- Due to lack of LwIP stack, network access is not available now.
-- To test PANNAP function for watch project on CYW943012BTEVK, modify makefile to open PANNAP function:
+- After compiling and downloading the image to the CYW920721M2EVK-01 board, open ClientControl.exe.
+- Click the "start" button to scan the "PANNAP" device.
+- Make sure one "PANNAP" device is available. On iPhone for example, go to "Settings", "Personal hotspot", "Allow others to join" and "turn on WLAN and Bluetooth&#174;".
+- In ClientControl when the "PANNAP" device is discovered, go to the "PANU" tab and click the "Connect" button.
+- When the PANU of CYW920721M2EVK-01 is connected to the "PANNAP" device, you can click the "Disconnect" button to disconnect the PAN connection.
+- Due to the lack of a LwIP stack, network access is not available.
+- To test the PANNAP function for the watch project on CYW920721M2EVK-01, modify the makefile to use the PANNAP function:
   - "PANU\_SUPPORT=0"
   - "PANNAP\_SUPPORT=1"
-- After compile and download image to 43012C0 board, 43012C0 PANNAP function is available now.
-- Then open mobile phone bluetooth, scan "watch" device.
-- If "watch" device is discovered, you can connect or disconnect PAN connection from mobile phone.
+- After compiling and downloading the image to the CYW920721M2EVK-01 board, the PANNAP function is available.
+- Open the mobile phone Bluetooth&#174; menu and scan for the "watch" device.
+- When the "watch" device is discovered, you can connect or disconnect the PAN connection from your mobile phone.
 
 HFP Audio Gateway:
 
@@ -171,15 +173,15 @@ HFP Audio Gateway:
   CYW920721M2EVK-01, CYW920721M2EVK-02, CYW9M2BASE-43012BT and CYW943012BTEVK-01
 - Build with "HFP\_AG\_INCLUDED=1" to enable AG. (disables Hands-free Unit simultaneously)
 - The Watch app can demonstrate how to use HFP AG as shown below.
-- Make a HFP Headset (headphone or earbuds) discoverable and pairable by its specific behavior.
+- Make an HFP Headset (headphone or earbuds) discoverable and pairable by its specific behavior.
 - In ClientControl, click on the "Start" button from the "BR/EDR Discovery" combo box to find the Headset device.
 - Select the peer device in the BR/EDR Discovery combo box.
 - Click the "Connect" button under the ClientControl AG tab.
-- Click the "Audio Connect" button. The AG will create a SCO connection to the Headset, wide-band speech is supported.
+- Click the "Audio Connect" button. The AG will create a SCO connection to the Headset, and wide-band speech is supported.
 - Click the "Audio Disconnect" button to remove the SCO connection.
-- Use Speaker Volume and Mic Volume Dropdown menu to set HF Speaker gain and HF Microphone gain respectively.
-- Use Indicators (Service availability, call status, callsetup, callheld, singal strength, battery value and roaming) dropdown menu to simulate indicator changes.
-- To simulate incoming/outgoing call, use indicators dropdown menu and RING/CCWA button.
+- Use Speaker Volume and Mic Volume  drop-down menu to set HF Speaker gain and HF Microphone gain respectively.
+- Use the indicators (Service availability, call status, call setup, call held, signal strength, battery value, and roaming) drop-down menu to simulate indicator changes.
+- To simulate incoming/outgoing calls, use the indicators  drop-down menu and RING/CCWA button.
 
 
 HFP Hands-free Unit:
@@ -187,24 +189,28 @@ HFP Hands-free Unit:
 - These targets support HFP Hands-free Unit by default:
   CYW920721M2EVK-01, CYW920721M2EVK-02, CYW9M2BASE-43012BT and CYW943012BTEVK-01
 - To create a hands-free connection with a remote Audio Gateway (AG) device (such as a mobile phone), use ClientControl and choose the Bluetooth&#174; address of the remote AG device from the BR/EDR combo box.<br/>
-  Click the "Connect" button under HF tab.
+  Click the "Connect" button under the HF tab.
 - OR Put the device in discoverable and connectable mode and search for the device from the AG device and connect.
-- The following HF operations can be performed using the ClientControl HF tab
+- The following HF operations can be performed using the ClientControl HF tab:
    -  Connect / Disconnect the HF or SCO connection
-   -  Answer / Hang-up the call
+   -  Answer / Hang up the call
    -  Dial / Redial the number
-   -  Control Held calls ( Only support "Release all held", "Release active accept other", "Place active on hold and accept other", "Add held to conversation( It’s functionality depends on the telecom network operator, if the telecom network side support the feature, the function will work. AG always supports this feature and responses OK)")
+   -  Control Held calls - features supported are:
+      - Release all held
+      - Release active accept other
+      - Place active on hold and accept other
+      - Add held to the conversation (Note: This functionality depends on the support from telecom network operator. AG always supports this feature and responds with OK.)
    -  Mic / Speaker gain control
 
 ## Application Settings
-Application specific settings are as shown below:
+Application-specific settings are as shown below:
 
 - SLEEP\_SUPPORTED
-    - This option allows the device to enter low power mode. By default the option is off. When sleep is enabled, ClientControl will not be able to communicate with the embedded app unless a GPIO is asserted.
+    - This option allows the device to enter low power mode. By default, the option is off. When sleep is enabled, ClientControl will not be able to communicate with the embedded app unless a GPIO is asserted.
     - 43012C0-related target (CYW9M2BASE-43012BT and CYW943012BTEVK-01) does not support this functionality.
 
 - COEX\_SUPPORTED
-    - This option enables Bluetooth&#174; and Wi-Fi Coexistence. By default the option is off.
+    - This option enables Bluetooth&#174; and Wi-Fi coexistence. By default, the option is off.
 
 - OTA\_FW\_UPGRADE
     - Use this option for OTA firmware upgrade
@@ -232,28 +238,27 @@ Application settings below are common for all BTSDK applications and can be conf
 > Set to the UART port you want to use to download the application. For example 'COM6' on Windows or '/dev/ttyWICED\_HCI\_UART0' on Linux or '/dev/tty.usbserial-000154' on macOS. By default, the SDK will auto-detect the port.
 
 ##### ENABLE_DEBUG
-> For HW debugging, configure ENABLE\_DEBUG=1. See the document [AIROC&#8482;-Hardware-Debugging](https://github.com/Infineon/btsdk-docs/blob/master/docs/BT-SDK/WICED-Hardware-Debugging.pdf) for more information. This setting configures GPIO for SWD.<br>
+> For HW debugging, configure ENABLE\_DEBUG=1. See the document [AIROC&#8482;-Hardware-Debugging](https://infineon.github.io/btsdk-docs/BT-SDK/AIROC-Hardware-Debugging.pdf) for more information. This setting configures GPIO for SWD.<br>
 >
    - CYW920819EVB-02/CYW920820EVB-02: SWD signals are shared with D4 and D5, see SW9 in schematics.
    - CYBT-213043-MESH/CYBT-213043-EVAL/CYBT-253059-EVAL: SWD signals are routed to P12=SWDCK and P13=SWDIO. Use expansion connectors to connect VDD, GND, SWDCK, and SWDIO to your SWD Debugger probe.
    - CYBT-223058-EVAL/CYW920835M2EVB-01/CYBT-243053-EVAL/CYBLE-343072-EVAL-M2B/CYBLE-333074-EVAL-M2B/CYBLE-343072-MESH: SWD signals are routed to P02=SWDCK and P03=SWDIO. Use expansion connectors to connect VDD, GND, SWDCK, and SWDIO to your SWD Debugger probe.
    - CYBT-263065-EVAL/CYBT-273063-EVAL: SWD signals are routed to P02=SWDCK and P04=SWDIO. Use expansion connectors to connect VDD, GND, SWDCK, and SWDIO to your SWD Debugger probe.
    - CYBT-343026-EVAL/CYBT-353027-EVAL/CYBT-333047-EVAL: SWD signals are routed to P11=SWDCK and P15=SWDIO. Use expansion connectors to connect VDD, GND, SWDCK, and SWDIO to your SWD Debugger probe.
-   - CYBT-343052-EVAL: SWD signals are routed to P02=SWDCK and P03=SWDIO. Use expansion connectors to connect VDD, GND, SWDCK, and SWDIO to your SWD Debugger probe.
    - CYBT-413055-EVAL/CYBT-413061-EVAL: SWD signals are routed to P16=SWDCK and P17=SWDIO. Use expansion connectors to connect VDD, GND, SWDCK, and SWDIO to your SWD Debugger probe.
    - CYW989820EVB-01: SWDCK (P02) is routed to the J13 DEBUG connector, but not SWDIO. Add a wire from J10 pin 3 (PUART CTS) to J13 pin 2 to connect GPIO P10 to SWDIO.
    - CYW920719B2Q40EVB-01: PUART RX/TX signals are shared with SWDCK and SWDIO. Remove RX and TX jumpers on J10 when using SWD. PUART and SWD cannot be used simultaneously on this board unless these pins are changed from the default configuration.
    - CYW920721M2EVK-02/CYW920721M2EVB-03: The default setup uses P03 for SWDIO and P05 for SWDCK. Check the position of SW15 if using JLink with the DEBUG connector.
    - CYW920706WCDEVAL: SWD debugging requires fly-wire connections. The default setup P15 (J22 pin 3 or J24 pin 1) for SWDIO and P11 (J23 pin 5
     or J22 pin 4) for SWDCK.
-   - CYW920735Q60EVB-01: SWD hardware debugging supported. The default setup uses the J13 debug header, P3 (J13 pin 2) for SWDIO and P2 (J13 pin 4) for SWDCK.  They can be optionally routed to D4 and D4 on the Arduino header J4, see SW9 in schematics.
    - CYW920736M2EVB-01: SWD hardware debugging requires fly-wire connections. The only option is using P14 for SWDCK and P15 for SWDIO. These route to Arduino header J2, A1 and A0. These can be fly-wired to Arduino header J4, D4 and D5. From there the signals connect to the KitProg3 SWD bridge. In addition, the debug macros (SETUP\_APP\_FOR\_DEBUG\_IF\_DEBUG\_ENABLED and BUSY\_WAIT\_TILL\_MANUAL\_CONTINUE\_IF\_DEBUG\_ENABLED) are placed in sparinit.c in code common to all applications for this device. Most applications for this device call bleprofile\_GPIOInit() in subsequent code, overwriting the SWD pin configuration. To use hardware debugging after the call to bleprofile\_GPIOInit(), place the debug macros in code after that call.
    - CYW943012B2EVK-01: SWD signals are shared with D4 and D5.
-   - CYW920820M2EVB-01: The default setup uses P03 for SWDIO and P02 for SWDCK. Check the position of SW15 if using JLink with the DEBUG connector.
+   - CYW920820M2EVB-01 & CYW920819M2EVB-01: The default setup uses P03 for SWDIO and P02 for SWDCK. Check the position of SW15 if using JLink with the DEBUG connector.
+   - CYW989820M2EVB-01: SWD hardware debugging requires a fly-wire connection to use P14 for SWDIO. P2 is connected directly to SWDCK / ARD_D4. Fly-wire P14 / ARD_D8 on J3.10 to J4.3 / ARD_D5 to connect SWDIO.
+
    - SWD hardware debugging is not supported on the following:
    >- CYW920721M2EVK-01
    >- CYW920835REF-RCU-01
-   >- CYW920819REF-KB-01
    >- CYW9M2BASE-43012BT
    >- CYBT-423054-EVAL
    >- CYBT-423060-EVAL
@@ -338,20 +343,18 @@ Note: this is a list of all features and profiles supported in BTSDK, but some A
 ## List of boards available for use with BTSDK
 
 - [CYW20819A1 chip](https://github.com/Infineon/20819A1)
-    - [CYW920819EVB-02](https://github.com/Infineon/TARGET_CYW920819EVB-02), [CYBT-213043-MESH](https://github.com/infineon/TARGET_CYBT-213043-MESH), [CYBT-213043-EVAL](https://github.com/infineon/TARGET_CYBT-213043-EVAL), [CYW920819REF-KB-01](https://github.com/infineon/TARGET_CYW920819REF-KB-01), [CYBT-223058-EVAL](https://github.com/infineon/TARGET_CYBT-223058-EVAL), [CYBT-263065-EVAL](https://github.com/infineon/TARGET_CYBT-263065-EVAL), [CYBT-273063-EVAL](https://github.com/infineon/TARGET_CYBT-273063-EVAL)
-- [CYW20820A1 chip](https://github.com/infineon/20820A1)
-    - [CYW920820EVB-02](https://github.com/infineon/TARGET_CYW920820EVB-02), [CYW989820EVB-01](https://github.com/infineon/TARGET_CYW989820EVB-01), [CYBT-243053-EVAL](https://github.com/infineon/TARGET_CYBT-243053-EVAL), [CYBT-253059-EVAL](https://github.com/infineon/TARGET_CYBT-253059-EVAL), [CYW920820M2EVB-01](https://github.com/Infineon/TARGET_CYW920820M2EVB-01)
-- [CYW20721B2 chip](https://github.com/infineon/20721B2)
-    - [CYW920721M2EVK-01](https://github.com/infineon/TARGET_CYW920721M2EVK-01), [CYW920721M2EVK-02](https://github.com/infineon/TARGET_CYW920721M2EVK-02), [CYW920721M2EVB-03](https://github.com/Infineon/TARGET_CYW920721M2EVB-03), [CYBT-423060-EVAL](https://github.com/infineon/TARGET_CYBT-423060-EVAL), [CYBT-483062-EVAL](https://github.com/infineon/TARGET_CYBT-483062-EVAL), [CYBT-413061-EVAL](https://github.com/infineon/TARGET_CYBT-413061-EVAL)
-- [CYW20719B2 chip](https://github.com/infineon/20719B2)
-    - [CYW920719B2Q40EVB-01](https://github.com/infineon/TARGET_CYW920719B2Q40EVB-01), [CYBT-423054-EVAL](https://github.com/infineon/TARGET_CYBT-423054-EVAL), [CYBT-413055-EVAL](https://github.com/infineon/TARGET_CYBT-413055-EVAL), [CYBT-483056-EVAL](https://github.com/infineon/TARGET_CYBT-483056-EVAL)
-- [CYW20706A2 chip](https://github.com/infineon/20706A2)
-    - [CYW920706WCDEVAL](https://github.com/infineon/TARGET_CYW920706WCDEVAL), [CYBT-353027-EVAL](https://github.com/infineon/TARGET_CYBT-353027-EVAL), [CYBT-343026-EVAL](https://github.com/infineon/TARGET_CYBT-343026-EVAL), [CYBT-333047-EVAL](https://github.com/Infineon/TARGET_CYBT-333047-EVAL)
-- [CYW20735B1 chip](https://github.com/infineon/20735B1)
-    - [CYW920735Q60EVB-01](https://github.com/infineon/TARGET_CYW920735Q60EVB-01), [CYBT-343052-EVAL](https://github.com/infineon/TARGET_CYBT-343052-EVAL)
-- [CYW20835B1 chip](https://github.com/infineon/20835B1)
-    - [CYW920835REF-RCU-01](https://github.com/infineon/TARGET_CYW920835REF-RCU-01), [CYW920835M2EVB-01](https://github.com/infineon/TARGET_CYW920835M2EVB-01), [CYBLE-343072-EVAL-M2B](https://github.com/Infineon/TARGET_CYBLE-343072-EVAL-M2B), [CYBLE-333074-EVAL-M2B](https://github.com/Infineon/TARGET_CYBLE-333074-EVAL-M2B), [CYBLE-343072-MESH](https://github.com/Infineon/TARGET_CYBLE-343072-MESH)
-- [CYW43012C0 chip](https://github.com/infineon/43012C0)
+    - [CYW920819EVB-02](https://github.com/Infineon/TARGET_CYW920819EVB-02), [CYW920819M2EVB-01](https://github.com/Infineon/TARGET_CYW920819M2EVB-01), [CYBT-213043-MESH](https://github.com/Infineon/TARGET_CYBT-213043-MESH), [CYBT-213043-EVAL](https://github.com/Infineon/TARGET_CYBT-213043-EVAL), [CYBT-223058-EVAL](https://github.com/Infineon/TARGET_CYBT-223058-EVAL), [CYBT-263065-EVAL](https://github.com/Infineon/TARGET_CYBT-263065-EVAL), [CYBT-273063-EVAL](https://github.com/Infineon/TARGET_CYBT-273063-EVAL)
+- [CYW20820A1 chip](https://github.com/Infineon/20820A1)
+    - [CYW920820EVB-02](https://github.com/Infineon/TARGET_CYW920820EVB-02), [CYW989820M2EVB-01](https://github.com/Infineon/TARGET_CYW989820M2EVB-01), [CYW989820EVB-01](https://github.com/Infineon/TARGET_CYW989820EVB-01), [CYBT-243053-EVAL](https://github.com/Infineon/TARGET_CYBT-243053-EVAL), [CYBT-253059-EVAL](https://github.com/Infineon/TARGET_CYBT-253059-EVAL), [CYW920820M2EVB-01](https://github.com/Infineon/TARGET_CYW920820M2EVB-01)
+- [CYW20721B2 chip](https://github.com/Infineon/20721B2)
+    - [CYW920721M2EVK-01](https://github.com/Infineon/TARGET_CYW920721M2EVK-01), [CYW920721M2EVK-02](https://github.com/Infineon/TARGET_CYW920721M2EVK-02), [CYW920721M2EVB-03](https://github.com/Infineon/TARGET_CYW920721M2EVB-03), [CYBT-423060-EVAL](https://github.com/Infineon/TARGET_CYBT-423060-EVAL), [CYBT-483062-EVAL](https://github.com/Infineon/TARGET_CYBT-483062-EVAL), [CYBT-413061-EVAL](https://github.com/Infineon/TARGET_CYBT-413061-EVAL)
+- [CYW20719B2 chip](https://github.com/Infineon/20719B2)
+    - [CYW920719B2Q40EVB-01](https://github.com/Infineon/TARGET_CYW920719B2Q40EVB-01), [CYBT-423054-EVAL](https://github.com/Infineon/TARGET_CYBT-423054-EVAL), [CYBT-413055-EVAL](https://github.com/Infineon/TARGET_CYBT-413055-EVAL), [CYBT-483056-EVAL](https://github.com/Infineon/TARGET_CYBT-483056-EVAL)
+- [CYW20706A2 chip](https://github.com/Infineon/20706A2)
+    - [CYW920706WCDEVAL](https://github.com/Infineon/TARGET_CYW920706WCDEVAL), [CYBT-353027-EVAL](https://github.com/Infineon/TARGET_CYBT-353027-EVAL), [CYBT-343026-EVAL](https://github.com/Infineon/TARGET_CYBT-343026-EVAL), [CYBT-333047-EVAL](https://github.com/Infineon/TARGET_CYBT-333047-EVAL)
+- [CYW20835B1 chip](https://github.com/Infineon/20835B1)
+    - [CYW920835REF-RCU-01](https://github.com/Infineon/TARGET_CYW920835REF-RCU-01), [CYW920835M2EVB-01](https://github.com/Infineon/TARGET_CYW920835M2EVB-01), [CYBLE-343072-EVAL-M2B](https://github.com/Infineon/TARGET_CYBLE-343072-EVAL-M2B), [CYBLE-333074-EVAL-M2B](https://github.com/Infineon/TARGET_CYBLE-333074-EVAL-M2B), [CYBLE-343072-MESH](https://github.com/Infineon/TARGET_CYBLE-343072-MESH)
+- [CYW43012C0 chip](https://github.com/Infineon/43012C0)
     - [CYW9M2BASE-43012BT](https://github.com/Infineon/TARGET_CYW9M2BASE-43012BT), [CYW943012BTEVK-01](https://github.com/Infineon/TARGET_CYW943012BTEVK-01)
 - [CYW20736A1 chip](https://github.com/Infineon/20736A1)
     - [CYW920736M2EVB-01](https://github.com/Infineon/TARGET_CYW920736M2EVB-01)
@@ -468,7 +471,7 @@ To view application traces, there are 2 methods available. Note that the
 application needs to configure the tracing options.<br>
 
 1. "WICED Peripheral UART" - Open this port on your computer using a serial port
-utility such as Tera Term or PuTTY (usually using 115200 baud rate for non-Mesh apps, and 921600 for Mesh apps).<br>
+utility such as TeraTerm or PuTTY (usually using 115200 baud rate for non-Mesh apps, and 921600 for Mesh apps).<br>
 2. "WICED HCI UART" - Open this port on your computer using the Client Control
 application mentioned above (usually using 3M baud rate). Then run the BTSpy
 utility mentioned above.

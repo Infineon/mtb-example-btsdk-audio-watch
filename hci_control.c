@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2023, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -39,11 +39,11 @@
  *  This app demonstrates Bluetooth A2DP source, AVRCP Controller/Target, Apple Media Service (AMS),
  *  Apple Notification Center Service (ANCS), and HFP Audio Gateway/Handsfree Unit.
  *  Features demonstrated
- *   - WICED BT A2DP Source APIs
- *   - WICED BT AVRCP (Controller/Target) APIs
- *   - WICED BT GATT APIs
+ *   - AIROC Bluetooth A2DP Source APIs
+ *   - AIROC Bluetooth AVRCP (Controller/Target) APIs
+ *   - AIROC Bluetooth GATT APIs
  *   - Apple Media Service and Apple Notification Client Services (AMS and ANCS)
- *   - Handling of the UART WICED protocol
+ *   - Handling of the UART AIROC HCI protocol
  *   - SDP and GATT descriptor/attribute configuration
  *   - HFP Audio Gateway role
  *   - HFP Handsfree Unit role
@@ -52,9 +52,9 @@
  *  ------------
  *  To demonstrate the app, follow these steps -
  *
- *  1. Build and download the application to the WICED board.
+ *  1. Build and download the application to the AIROC board.
  *  2. By default sleep in enabled in 20706A2, 20819A1, 20719B1, 20721B1 chips (*refer : Note).
- *  3. Open the BT/BLE Profile Client Control application and open the port for WICED HCI for the device.
+ *  3. Open the Bluetooth Classic and LE Profile Client Control application and open the port for WICED HCI for the device.
  *     Default baud rate configured in the application is 3M.
  *  4. Use Client Control application to send various commands mentioned below.
  *  5. Run the BTSpy program to view protocol and application traces.
@@ -63,7 +63,7 @@
  *   For 20706A2 we are allowing normal PMU sleep.Therefore,the transport will be connected by default.So,no need to wake device.
  *   In other chips 207xx, 208xx please wake the device using configured wake pin. (Check  hci_control_sleep_config.device_wake_gpio_num).
  *
- *  See "BT/BLE Profile Client Control" and "BT Spy" in chip-specifc readme.txt for more information about these apps.
+ *  See "Bluetooth Classic and LE Profile Client Control" and "BTSpy" in chip-specifc readme.txt for more information about these apps.
  *
  *  BR/EDR Audio Source and AVRC Target:
  *  - The Watch app can demonstrate how use to BR/EDR Audio Source and AVRC TG profiles.
@@ -72,7 +72,7 @@
  *    and select the Media type as 'Sine Wave' in UI. In this case, built-in sine wave audio is played.
  *  - To play music from .wav file, select the Media type as File, browse and select a .wav file.
  *    In this case, audio for .wav file is routed over WICED HCI UART to the WICED board.
- *  - Put an audio sink device such as BT headphone/speaker in pairable mode.
+ *  - Put an audio sink device such as Bluetooth headphone/speaker in pairable mode.
  *  - Click on "Start" button for "BR/EDR Discovery" combo box to find the audio sink device.
  *  - Select the peer device in the BR/EDR Discovery combo box.
  *  - Click "Connect" button under AV Source tab.
@@ -112,13 +112,13 @@
  *      or reject the call. Send SMS to your iPhone to see notification. Similarly missed
  *      call notifications are seen.
  *
- *  BLE Client:
- *  - The Watch app can demonstrate BLE Client functionality as below.
- *  - Make sure there is a BT device with GATT services that is advertising. For example use app
+ *  LE Client:
+ *  - The Watch app can demonstrate LE Client functionality as below.
+ *  - Make sure there is a Bluetooth device with GATT services that is advertising. For example use app
  *    such as 'LightBlue' on your phone and create a 'Virtual Peripheral' such as 'Blood Pressure'
- *  - To find GATT devices: Click on the "Start" button for "BLE Discovery" combo box.
+ *  - To find GATT devices: Click on the "Start" button for "LE Discovery" combo box.
  *    Click on "Stop" button to end discovery.
- *  - To connect BLE device: Choose device from the "BLE Discovery" drop down combo box and
+ *  - To connect LE device: Choose device from the "LE Discovery" drop down combo box and
  *    click "Connect" button.
  *  - To discover services: Click on the "Discover Services" button
  *  - To discover characteristics: Enter the handles in the edit box and click
@@ -207,7 +207,7 @@
 #include <wiced_trans_spi.h>
 #endif
 #endif
-#if ( defined(CYW20719B1) || defined(CYW20719B2) || defined(CYW20721B1) || defined(CYW20721B2) || defined(WICEDX) || defined(CYW20819A1) )
+#if ( defined(CYW20719B1) || defined(CYW20719B2) || defined(CYW20721B1) || defined(CYW20721B2) || defined(WICEDX) || defined(CYW20819A1) || defined(CYW55572A1) )
 #include <wiced_sleep.h>
 #endif
 #ifdef CYW20706A2
@@ -498,7 +498,11 @@ void hci_control_sleep_configure()
         static wiced_sleep_config_t    hci_control_sleep_config;
         // For UART mode MCU should control wake gpio and configure the sleep
         hci_control_sleep_config.sleep_mode             = WICED_SLEEP_MODE_TRANSPORT;
+#ifdef CYW55572A1
+        hci_control_sleep_config.device_wake_gpio_num   = WICED_GPIO_10;
+#else
         hci_control_sleep_config.device_wake_gpio_num   = WICED_GPIO_PIN_BUTTON;
+#endif
         hci_control_sleep_config.device_wake_mode       = WICED_SLEEP_WAKE_ACTIVE_LOW;
         hci_control_sleep_config.device_wake_source     = WICED_SLEEP_WAKE_SOURCE_GPIO;
         hci_control_sleep_config.host_wake_mode         = WICED_SLEEP_WAKE_ACTIVE_HIGH;
@@ -518,6 +522,9 @@ void hci_control_sleep_configure()
         }
         hci_control_cb.application_state = HCI_CONTROL_STATE_NOT_IDLE;
 
+#ifdef CYW55572A1
+        wiced_sleep_allow_sleep(1);
+#endif
         wiced_sleep_configure( &hci_control_sleep_config );
     }
 #endif // CYW20706A2

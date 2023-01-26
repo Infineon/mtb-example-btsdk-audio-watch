@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2023, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -128,6 +128,7 @@ typedef struct
     uint8_t             avdt_handle;
 
     wiced_bool_t        reconfigure;
+    wiced_bool_t        reconfigure_rejected;   /* TRUE: AVDTP reconfigure command was rejected */
     wiced_bool_t        is_accepter;
     wiced_bool_t        is_host_streaming;
     wiced_bool_t        is_start_cmd_pending;
@@ -1012,7 +1013,11 @@ static void av_app_open_confirm_event_hdlr(uint8_t handle, BD_ADDR bd_addr, uint
         lcid = p_data->open_cfm.lcid;
         peer_mtu = p_data->open_cfm.peer_mtu;
 
-        hci_control_audio_send_connect_complete( bd_addr, AVDT_SUCCESS, av_app_cb.avdt_handle );
+        if ( av_app_cb.reconfigure_rejected == WICED_FALSE )
+        {
+            /* Send connection complete if it's not a re-open for reconfigure rejected case */
+            hci_control_audio_send_connect_complete( bd_addr, AVDT_SUCCESS, av_app_cb.avdt_handle );
+        }
 
 #ifdef WICED_APP_AUDIO_RC_TG_INCLUDED
         /*
@@ -1162,6 +1167,8 @@ static void av_app_reconfig_confirm_event_hdlr(uint8_t handle, BD_ADDR bd_addr, 
     else
     {
         // Reconfig failed. Try closing and re-starting
+        WICED_BT_TRACE("Warning: AVDTP reconfigure command rejected\n");
+        av_app_cb.reconfigure_rejected = WICED_TRUE;
         av_app_send_close_req();
     }
 }
@@ -1178,6 +1185,13 @@ static void av_app_close_confirm_event_hdlr(uint8_t handle, BD_ADDR bd_addr, uin
         av_app_cb.state = AV_STATE_CONNECTED; /* We are still connected at the signaling channel level */
 
         memset(&av_app_cb.sbc_caps_configured, 0, sizeof(av_app_cb.sbc_caps_configured));
+
+        if ( av_app_cb.reconfigure_rejected == WICED_TRUE )
+        {
+            /* Peer device can not accept AVDTP reconfigure command in reconfigure step */
+            av_app_cb.reconfigure = WICED_FALSE;
+            av_app_cb.is_interrupted = WICED_FALSE;
+        }
 
         /* Assuming the peer device does not disconnect when close happens, re-perform SEP discovery */
         av_app_send_discover_req();
@@ -1480,6 +1494,8 @@ static wiced_result_t av_app_disconnect_connection(void)
     else
     {
         av_app_cb.state = AV_STATE_DISCONNECTING;
+        av_app_cb.reconfigure_rejected = WICED_FALSE;
+
         if (avrcp_profile_role == AVRCP_TARGET_ROLE)
         {
 #ifdef WICED_APP_AUDIO_RC_TG_INCLUDED
@@ -2203,7 +2219,8 @@ wiced_result_t a2dp_app_hci_control_start( uint8_t* p_data, uint32_t len )
             }
 #endif
 
-          if (av_app_check_configured_settings(&av_app_cb.sbc_caps_configured, new_sf, new_chcfg) == WICED_FALSE)
+          if ((av_app_check_configured_settings(&av_app_cb.sbc_caps_configured, new_sf, new_chcfg) == WICED_FALSE) &&
+                (av_app_cb.reconfigure_rejected == WICED_FALSE))
           {
               // Need to reconfigure before we start the stream.
               status = av_app_reconfigure_req(new_sf, new_chcfg);
@@ -2699,7 +2716,11 @@ static void hci_control_audio_mp3_audio_info_update_handler(wiced_bt_mp3_decoder
     new_chcfg = hci_control_audio_mp3_utils_channel_to_a2d_format(p_audio_info->channel);
 
     /* Send AVDTP_RECONFIGURE command to the sink device. */
-    av_app_reconfigure_req(new_sf, new_chcfg);
+    if ( av_app_cb.reconfigure_rejected == WICED_FALSE )
+    {
+        WICED_BT_TRACE("mp3_audio_info_update_handler: Try to send reconfiguration command.\n");
+        av_app_reconfigure_req(new_sf, new_chcfg);
+    }
 }
 
 /*
