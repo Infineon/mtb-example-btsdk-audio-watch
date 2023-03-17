@@ -170,7 +170,7 @@ Personal Access Network
 HFP Audio Gateway:
 
 - These targets support HFP Audio Gateway:
-  CYW920721M2EVK-01, CYW920721M2EVK-02, CYW9M2BASE-43012BT and CYW943012BTEVK-01
+  CYW920721M2EVK-01, CYW920721M2EVK-02, CYW920721M2EVB-03, CYW9M2BASE-43012BT, and CYW943012BTEVK-01
 - Build with "HFP\_AG\_INCLUDED=1" to enable AG. (disables Hands-free Unit simultaneously)
 - The Watch app can demonstrate how to use HFP AG as shown below.
 - Make an HFP Headset (headphone or earbuds) discoverable and pairable by its specific behavior.
@@ -187,7 +187,7 @@ HFP Audio Gateway:
 HFP Hands-free Unit:
 
 - These targets support HFP Hands-free Unit by default:
-  CYW920721M2EVK-01, CYW920721M2EVK-02, CYW9M2BASE-43012BT and CYW943012BTEVK-01
+  CYW920721M2EVK-01, CYW920721M2EVK-02, CYW920721M2EVB-03, CYW9M2BASE-43012BT, and CYW943012BTEVK-01
 - To create a hands-free connection with a remote Audio Gateway (AG) device (such as a mobile phone), use ClientControl and choose the Bluetooth&#174; address of the remote AG device from the BR/EDR combo box.<br/>
   Click the "Connect" button under the HF tab.
 - OR Put the device in discoverable and connectable mode and search for the device from the AG device and connect.

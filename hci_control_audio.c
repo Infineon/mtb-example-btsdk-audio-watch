@@ -157,7 +157,7 @@ static const wiced_bt_a2d_sbc_cie_t av_sbc_caps =
 /* ch_mode      */    (A2D_SBC_IE_CH_MD_MONO | A2D_SBC_IE_CH_MD_JOINT), // A2D_SBC_IE_CH_MD_DUAL | A2D_SBC_IE_CH_MD_STEREO
 /* block_len    */    (A2D_SBC_IE_BLOCKS_16),     //A2D_SBC_IE_BLOCKS_8|A2D_SBC_IE_BLOCKS_12|A2D_SBC_IE_BLOCKS_16|
 /* num_subbands */    (A2D_SBC_IE_SUBBAND_8),     //A2D_SBC_IE_SUBBAND_4|A2D_SBC_IE_SUBBAND_8
-/* alloc_mthd   */    (A2D_SBC_IE_ALLOC_MD_S),    //A2D_SBC_IE_ALLOC_MD_S|A2D_SBC_IE_ALLOC_MD_L
+/* alloc_mthd   */    (A2D_SBC_IE_ALLOC_MD_L),    //A2D_SBC_IE_ALLOC_MD_S|A2D_SBC_IE_ALLOC_MD_L
 /* max_bitpool  */    (AV_SBC_MAX_BITPOOL),       //A2D_SBC_IE_MAX_BITPOOL
 /* min_bitpool  */    (A2D_SBC_IE_MIN_BITPOOL)    //A2D_SBC_IE_MIN_BITPOOL
 };
@@ -1251,6 +1251,15 @@ static void av_app_config_indication_event_hdlr(uint8_t handle, BD_ADDR bd_addr,
         }
 
         /* Got the indication of the setconfig. Check the format. */
+
+        if((p_data->config_ind.p_cfg->codec_info[4] & 0x03) == 0x00)
+        {
+            /* Some airpods reconnection with AVDT set configuration of SBC allocation method is None, but the
+            spec about SBC allocation must have value, so do this WAR to set a type of allocation method value
+            */
+            p_data->config_ind.p_cfg->codec_info[4] |= 0x01;    //loudness
+            WICED_BT_TRACE( "[%s]: codec_info[4]: 0x%02x \n\r", __FUNCTION__, p_data->config_ind.p_cfg->codec_info[4]);
+        }
 
         a2d_status = wiced_bt_a2d_pars_sbc_info( &av_app_cb.sbc_caps_configured,
                                       p_data->config_ind.p_cfg->codec_info,

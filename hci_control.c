@@ -407,7 +407,7 @@ void hci_control_post_init(void)
 #ifndef CYW20706A2
 wiced_timer_t hci_control_app_timer;
 
-void hci_control_timeout( uint32_t count )
+void hci_control_timeout( TIMER_PARAM_TYPE count )
 {
     WICED_BT_TRACE("Idle Timeout.\n");
 
@@ -1416,6 +1416,7 @@ int hci_control_find_nvram_id(uint8_t *p_data, int len)
  */
 static wiced_result_t hci_control_delete_bonded_device(wiced_bt_device_address_t bd_addr)
 {
+#ifdef WICED_APP_LE_INCLUDED
     app_identity_random_mapping_t * addr_map = get_addr_mapping_by_identity_addr(bd_addr);
     int idx;
 
@@ -1433,6 +1434,7 @@ static wiced_result_t hci_control_delete_bonded_device(wiced_bt_device_address_t
             }
         }
     }
+#endif // WICED_APP_LE_INCLUDED
 
     return wiced_bt_dev_delete_bonded_device(bd_addr);
 }
