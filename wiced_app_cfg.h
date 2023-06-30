@@ -39,9 +39,6 @@
 
 #pragma once
 
-#ifdef WICED_APP_AUDIO_SNK_INCLUDED
-#include <wiced_bt_a2dp_sink.h>
-#endif
 #include <wiced_bt_cfg.h>
 #include <wiced_bt_audio.h>
 
@@ -60,15 +57,8 @@
 #define WICED_BT_RFCOMM_MAX_CONN    (HFP_AG_RFCOMM_CONN_NUM + HFP_HF_RFCOMM_CONN_NUM)
 
 extern const wiced_bt_cfg_settings_t wiced_bt_cfg_settings;
-
 extern const wiced_bt_audio_config_buffer_t wiced_bt_audio_buf_config;
 extern int wiced_app_cfg_get_num_buf_pools(void);
-
-//uint8_t *wiced_app_cfg_sdp_record_get(void);
 extern const uint8_t wiced_app_cfg_sdp_record[];
 extern uint16_t wiced_app_cfg_sdp_record_get_size(void);
-
-#ifdef WICED_APP_AUDIO_SNK_INCLUDED
-extern wiced_bt_a2dp_config_data_t wiced_app_cfg_a2dp_config_data;
-#endif
 extern uint8_t wiced_app_cfg_avrc_ct_supported_events[];

@@ -59,9 +59,6 @@
 #if ( defined(CYW20706A2) || defined(CYW20719B1) || defined(CYW20721B1) || defined(CYW43012C0) )
 #include <wiced_bt_app_common.h>
 #endif
-#ifdef WICED_APP_AUDIO_SNK_INCLUDED
-#include "a2dp_sink.h"
-#endif
 #include "hci_control.h"
 #include "hci_control_le.h"
 #include "hci_control_rc_controller.h"

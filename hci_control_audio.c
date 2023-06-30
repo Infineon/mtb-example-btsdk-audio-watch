@@ -981,20 +981,6 @@ static void av_app_disconnect_event_hdlr( uint8_t handle, BD_ADDR bd_addr, uint8
     /* Disconnect AVRCP */
     wiced_bt_avrc_tg_initiate_close();
 #endif
-
-#ifdef WICED_APP_AUDIO_SNK_INCLUDED
-    /* Save audio route */
-    hci_control_a2dp_source_audio_route_update(bd_addr, av_app_cb.audio_route);
-#endif
-
-#ifdef WICED_APP_AUDIO_ROLE_SERVICE_SWITCH_WITH_SNK
-    /* Switch back to A2DP_Sink + AVRCP Controller */
-    if (hci_control_rc_target_is_connected() == WICED_FALSE)
-    {
-        hci_control_switch_avrcp_role(AVRCP_CONTROLLER_ROLE);
-    }
-    hci_control_switch_a2dp_role(A2DP_SINK_ROLE);
-#endif
 }
 
 /*
@@ -1034,11 +1020,6 @@ static void av_app_open_confirm_event_hdlr(uint8_t handle, BD_ADDR bd_addr, uint
             /* Attempt a start... */
             av_app_start_audio( );
         }
-
-#ifdef WICED_APP_AUDIO_SNK_INCLUDED
-        /* save a2dp role to device database */
-        hci_control_a2dp_role_update(bd_addr, A2DP_SOURCE_ROLE);
-#endif
     }
     else
     {
@@ -1344,12 +1325,6 @@ static void av_app_proc_stream_evt( uint8_t handle, BD_ADDR bd_addr, uint8_t eve
             /* If the connect indication comes through here, the connect is initiated from the remote */
             av_app_cb.is_accepter = WICED_TRUE;
 
-#ifdef WICED_APP_AUDIO_SNK_INCLUDED
-            /* Set audio route for reconnection device */
-            av_app_cb.audio_route = hci_control_a2dp_source_audio_route_get(bd_addr);
-            WICED_BT_TRACE("Audio Route:%d\n", av_app_cb.audio_route);
-#endif
-
             /* Do SDP to get peer version info */
             if ( av_app_initiate_sdp(bd_addr) != WICED_SUCCESS)
             {
@@ -1457,11 +1432,6 @@ static wiced_result_t av_app_create_connection(void)
     WICED_BT_TRACE( "[%s] \n\r", __FUNCTION__ );
 
     av_app_cb.is_accepter = WICED_FALSE;
-
-#ifndef WICED_APP_AUDIO_ROLE_SERVICE_SWITCH_WITH_SNK
-    /* Make sure the AVRCP Profile role is correct */
-    hci_control_switch_avrcp_role(AVRCP_TARGET_ROLE);
-#endif
 
     avdt_status =
             wiced_bt_avdt_connect_req(av_app_cb.peer_bda,
@@ -2025,12 +1995,6 @@ void av_app_sdp_cback( uint16_t sdp_result )
         {
              av_app_cb.state = AV_STATE_IDLE;
              hci_control_audio_send_connect_complete( av_app_cb.peer_bda, status, 0 );
-
-#ifdef WICED_APP_AUDIO_ROLE_SERVICE_SWITCH_WITH_SNK
-             /* Switch back to A2DP_Sink + AVRCP Controller */
-             hci_control_switch_avrcp_role(AVRCP_CONTROLLER_ROLE);
-             hci_control_switch_a2dp_role(A2DP_SINK_ROLE);
-#endif
         }
         else
         {
@@ -2105,12 +2069,6 @@ wiced_result_t a2dp_app_hci_control_connect(uint8_t* p_data, uint32_t len)
     wiced_result_t status = WICED_ERROR;
 
     WICED_BT_TRACE( "[%s] state: %s \n\r", __FUNCTION__, dump_state_name(av_app_cb.state));
-
-#ifdef WICED_APP_AUDIO_ROLE_SERVICE_SWITCH_WITH_SNK
-    /* Switch Role */
-    hci_control_switch_avrcp_role(AVRCP_TARGET_ROLE);
-    hci_control_switch_a2dp_role(A2DP_SOURCE_ROLE);
-#endif
 
     /* First make sure that there is not already a connection */
     if (av_app_cb.state == AV_STATE_IDLE)
