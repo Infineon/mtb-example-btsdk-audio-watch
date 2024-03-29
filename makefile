@@ -1,5 +1,5 @@
 #
-# Copyright 2016-2023, Cypress Semiconductor Corporation (an Infineon company) or
+# Copyright 2016-2024, Cypress Semiconductor Corporation (an Infineon company) or
 # an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
 #
 # This software, including source code, documentation and related
@@ -164,6 +164,16 @@ ifeq ($(ENABLE_DEBUG),1)
 CY_APP_DEFINES+=-DENABLE_DEBUG=1
 endif
 
+
+# For devices that are memory constrained and can process CY_DISABLE_TRACE_PATH
+# in the device CSP library in make/recipe/defines.mk:
+# list paths with source files we would like to build without WICED_BT_TRACE_ENABLE.
+CY_DISABLE_TRACE_PATH =$(SEARCH_btsdk-audio)
+CY_DISABLE_TRACE_PATH+=$(SEARCH_btsdk-ota)
+CY_DISABLE_TRACE_PATH+=$(SEARCH_btsdk-pan)
+CY_DISABLE_TRACE_PATH+=$(SEARCH_btsdk-common)
+CY_DISABLE_TRACE_PATH+=$(SEARCH_43012C0)
+
 CY_APP_DEFINES += -DWICED_BT_TRACE_ENABLE
 CY_APP_DEFINES += -DWICED_HCI_TRANSPORT_SPI=2
 CY_APP_DEFINES += -DWICED_HCI_TRANSPORT_UART=1
@@ -172,10 +182,10 @@ CY_APP_DEFINES += -DCOEX_SUPPORTED=$(COEX_SUPPORT)
 #CY_APP_DEFINES += -DPTS_TEST_ONLY
 ifeq ($(TRANSPORT),SPI)
 #$(info Transport=SPI)
-ifeq ($(TARGET),$(filter $(TARGET), CYW920706WCDEVAL CYW920719B2Q40EVB-01 CYW920721M2EVK-01 CYW920721M2EVK-02 CYW920721M2EVB-03))
+ifeq ($(TARGET),$(filter $(TARGET), CYW920719B2Q40EVB-01))
 CY_APP_DEFINES += -DWICED_HCI_TRANSPORT=2
 else
-$(error invalid TARGET for SPI transport, supported only for CYW920706WCDEVAL and CYW920719B2Q40EVB-01)
+$(error invalid TARGET for SPI transport, supported only for CYW920719B2Q40EVB-01)
 endif
 else
 #$(info Transport=UART)
@@ -233,9 +243,6 @@ endif
 #
 # Patch Library for different target
 #
-ifeq ($(TRANSPORT),SPI)
-CY_20706A2_APP_PATCH_LIBS += wiced_hal_lib.a
-endif
 ifeq ($(A2DP_SRC_INCLUDED), 1)
 CY_20706A2_APP_PATCH_LIBS += wiced_audio_source.a
 endif

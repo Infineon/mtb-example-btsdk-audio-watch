@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2024, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -280,9 +280,52 @@ wiced_transport_buffer_pool_t* transport_pool;   // Trans pool for sending the R
 
 // memory optimizations
 #if defined(CYW43012C0)
-uint8_t g_wiced_memory_pre_init_enable = 2;     // 2: MEMORY_PRE_INIT_ENABLE_A2DP_SOURCE
-uint8_t g_wiced_memory_pre_init_max_ble_connections = 4;
-uint8_t g_wiced_memory_pre_init_num_ble_rl = 16;
+/**
+ * Implement memory tuning, using wiced_memory_pre_init_ex(WICED_MEM_PRE_INIT_CONTROL *).
+ * This function is called during early application initialization in spar_setup.c.
+ * In spar_setup.c a weakly defined WICED_MEM_PRE_INIT_CONTROL with default settings is used.
+ * Defining an alternate non-weak version of this structure overrides the default.
+*/
+#include "wiced_memory_pre_init.h"
+
+WICED_CONFIG_ACL_POOLS_t ACL_pool_config =
+{
+    .host_claim_host_to_device_count = WICED_MEM_PRE_INIT_IGNORE,
+    .host_to_device_count = 16,
+    .device_to_host_count = 4
+};
+
+WICED_CONFIG_ACL_POOLS_t LE_pool_config =
+{
+    .host_claim_host_to_device_count = 8,
+    .host_to_device_count = 8,
+    .device_to_host_count = 8
+};
+
+WICED_CONFIG_DYNAMIC_MEMORY_t gen_pool_config =
+{
+    .num_pools = 5,
+    .pools[0] = {16, 32, 3},
+    .pools[1] = {32, 36, 2},
+    .pools[2] = {96, 8, 1},
+    .pools[3] = {268, 8, 1},
+    .pools[4] = {572, 2, 0}
+};
+
+WICED_MEM_PRE_INIT_CONTROL g_mem_pre_init =
+{
+    .max_ble_connections = 2,
+    .max_peripheral_piconet = 2,
+    .max_resolving_list = 8,
+    .onfound_list_len = 0,
+    .max_multi_adv_instances = 8,
+    .adv_filter_size = 0,
+    .max_bt_connections = 5,
+    .disable_coex_fix = WICED_MEM_PRE_INIT_IGNORE,
+    .p_ACL_pool_config = &ACL_pool_config,
+    .p_LE_pool_config = &LE_pool_config,
+    .p_gen_pool_config = &gen_pool_config
+};
 #endif
 
 /******************************************************
