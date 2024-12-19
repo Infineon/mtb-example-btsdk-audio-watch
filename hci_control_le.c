@@ -243,12 +243,17 @@ wiced_result_t hci_control_le_connection_up( wiced_bt_gatt_connection_status_t *
     else
     {
 #ifdef WICED_APP_LE_PERIPHERAL_CLIENT_INCLUDED
+        le_peripheral_connection_up(p_status);
 #ifndef AMA_ENABLED
         // ask central to set preferred connection parameters
         // For better audio quality higher connection interval is preferable
-        wiced_bt_l2cap_update_ble_conn_params( p_status->bd_addr, 112, 128, 0, 200 );
+        uint8_t index = find_index_by_address(p_status->bd_addr);
+        if (index == 0xFF)
+            index = 0;
+        else
+            index++;
+        wiced_bt_l2cap_update_ble_conn_params( p_status->bd_addr, 108, 108 + 12*index, 0, 600 );
 #endif
-        le_peripheral_connection_up(p_status);
 #endif
     }
 
@@ -322,6 +327,12 @@ void hci_control_le_gatt_op_comp_read_handle(uint16_t conn_idx, wiced_bt_gatt_op
             hci_control_le_send_read_rsp( conn_idx, p_complete->response_data.att_value.p_data,
                     p_complete->response_data.att_value.len );
     }
+#if BTSTACK_VER >= 0x03000001
+    if ( p_complete->response_data.att_value.p_data != NULL )
+    {
+        wiced_bt_free_buffer( p_complete->response_data.att_value.p_data );
+    }
+#endif
 }
 
 void hci_control_le_gatt_op_comp_write_handle(uint16_t conn_idx, wiced_bt_gatt_status_t status)
@@ -666,7 +677,7 @@ void hci_control_le_advert_state_changed( wiced_bt_ble_advert_mode_t mode )
         break;
     default:
         hci_control_le_event = LE_ADV_STATE_NO_DISCOVERABLE;
-		break;
+        break;
     }
     hci_control_le_send_advertisement_state_event( hci_control_le_event );
 }
@@ -841,15 +852,24 @@ void hci_control_le_handle_scan_cmd( wiced_bool_t enable, wiced_bool_t filter_du
  */
 void hci_control_le_handle_advertise_cmd( wiced_bool_t enable )
 {
+    uint8_t status = HCI_CONTROL_STATUS_SUCCESS;
+
     if ( enable )
     {
-        wiced_bt_start_advertisements( BTM_BLE_ADVERT_UNDIRECTED_LOW, 0, NULL );
+        if(is_le_peripheral_new_connection_avalialbe())
+        {
+            wiced_bt_start_advertisements( BTM_BLE_ADVERT_UNDIRECTED_LOW, 0, NULL );
+        }
+        else
+        {
+            status = HCI_CONTROL_STATUS_DISALLOWED;;
+        }
     }
     else
     {
         wiced_bt_start_advertisements( BTM_BLE_ADVERT_OFF, 0, NULL );
     }
-    hci_control_send_command_status_evt( HCI_CONTROL_GATT_EVENT_COMMAND_STATUS, HCI_CONTROL_STATUS_SUCCESS );
+    hci_control_send_command_status_evt( HCI_CONTROL_GATT_EVENT_COMMAND_STATUS, status );
 }
 
 

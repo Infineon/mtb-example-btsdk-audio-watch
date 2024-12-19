@@ -326,7 +326,7 @@ wiced_result_t avrc_app_tg_hci_disconnect_connection (void)
 wiced_result_t app_avrc_hci_control_volume( uint8_t* p_data, uint32_t len )
 {
     uint16_t handle = p_data[0] + (p_data[1] << 8);
-    uint8_t  volume = ( (p_data[2] * MAX_AVRCP_VOLUME_LEVEL) + 50 ) / 100; /* Convert from percentage to AVRCP scale */
+    uint8_t  volume = (p_data[2] * MAX_AVRCP_VOLUME_LEVEL) / 100; /* Convert from percentage to AVRCP scale */
 
     return wiced_bt_avrc_tg_absolute_volume_changed(handle, volume);
 }

@@ -51,7 +51,9 @@
 /******************************************************
  *                     Constants
  ******************************************************/
+#ifndef LE_CONTROL_MAX_CONNECTIONS
 #define LE_CONTROL_MAX_CONNECTIONS          20
+#endif
 #define LE_CONTROL_CONNECT_TIMEOUT          10
 
 #define CYPRESS_COMPANY_ID 0x0131

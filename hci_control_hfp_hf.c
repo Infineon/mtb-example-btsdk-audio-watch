@@ -622,8 +622,9 @@ void hci_control_hf_at_command (uint16_t handle, uint8_t command, int num, uint8
             break;
 
         case HCI_CONTROL_HF_AT_COMMAND_CNUM:
+            /*AT command for test HFP/HF/NUM/BI-01-C is updated in  AVRCP 1.6.2  TS Spec */
             hci_control_hf_send_at_cmd(handle, "+CNUM",
-                        WICED_BT_HFP_HF_AT_NONE, WICED_BT_HFP_HF_AT_FMT_NONE, NULL, 0);
+                        WICED_BT_HFP_HF_AT_TEST, WICED_BT_HFP_HF_AT_FMT_NONE, NULL, 0);
             break;
 
         case HCI_CONTROL_HF_AT_COMMAND_CLCC:

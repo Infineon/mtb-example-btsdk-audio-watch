@@ -136,7 +136,9 @@ typedef PACKED struct
 
 #pragma pack()
 
+#ifndef MAX_PHONE_CONNECTIONS
 #define MAX_PHONE_CONNECTIONS 2
+#endif
 // NVRAM save area
 HOSTINFO watch_hostinfo[MAX_PHONE_CONNECTIONS];
 
@@ -287,6 +289,17 @@ uint8_t find_index_by_address(BD_ADDR remote_addr)
     return ANCS_INVALID_CONN_INDEX;
 }
 
+wiced_bool_t is_le_peripheral_new_connection_avalialbe(void)
+{
+    if (ANCS_INVALID_CONN_INDEX == find_index_by_conn_id(ANCS_EMPTY_CONN_INDEX))
+    {
+        return WICED_FALSE;
+    }
+    else
+    {
+        return WICED_TRUE;
+    }
+}
 /*
  * This function will be called when a connection is established in LE Peripheral Role
  */

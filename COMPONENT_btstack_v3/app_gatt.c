@@ -48,7 +48,7 @@
 /******************************************************
  *                     Constants
  ******************************************************/
-
+#define APP_GATT_READ_BY_HANDLE_BUF_LEN 16
 /******************************************************
  *                     Structures
  ******************************************************/
@@ -316,6 +316,26 @@ wiced_bt_gatt_status_t app_gatt_send_write( uint8_t conn_idx, uint16_t attr_hand
     return ( status );
 }
 
+wiced_bt_gatt_status_t app_gatt_client_send_read_handle( uint16_t conn_idx, uint16_t handle )
+{
+    wiced_bt_gatt_status_t status;
+    uint8_t *p_read_buffer = (uint8_t *)wiced_bt_get_buffer(APP_GATT_READ_BY_HANDLE_BUF_LEN);
+    if ( p_read_buffer == NULL )
+    {
+        WICED_BT_TRACE("[%s]: fail to request read buffer, target buffer len=%d", __FUNCTION__, APP_GATT_READ_BY_HANDLE_BUF_LEN);
+        status = WICED_BT_GATT_NO_RESOURCES;
+    }
+    else
+    {
+        status = wiced_bt_gatt_client_send_read_handle( conn_idx, handle, 0, p_read_buffer, APP_GATT_READ_BY_HANDLE_BUF_LEN, GATT_AUTH_REQ_NONE );
+        if ( status != WICED_BT_GATT_SUCCESS )
+        {
+            if( p_read_buffer != NULL )
+                wiced_bt_free_buffer( p_read_buffer );
+        }
+    }
+    return status;
+}
 wiced_bt_gatt_status_t app_gatt_send_response(uint16_t conn_id, uint16_t handle, uint8_t *p_data, uint16_t len)
 {
     return wiced_bt_gatt_server_send_read_handle_rsp( conn_id, GATT_RSP_READ, len, p_data, NULL );

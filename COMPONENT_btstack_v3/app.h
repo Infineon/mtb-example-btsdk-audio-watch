@@ -100,8 +100,13 @@ uint32_t               app_copy_advertisement_data( uint8_t *p_adv_data, uint8_t
  *               Macro Function Definitions
  ******************************************************/
 #define app_create_pool( size, count ) wiced_bt_create_pool( "pki", size, count, NULL )
+#ifdef NEW_DYNAMIC_MEMORY_INCLUDED
 #define app_transport_send_hci_trace( type, data, len ) wiced_transport_send_hci_trace( type, data, len )
 #define app_free_rx_cmd_buffer( ptr )
+#else
+#define app_transport_send_hci_trace( type, data, len ) wiced_transport_send_hci_trace( NULL, type, len, data )
+#define app_free_rx_cmd_buffer( ptr ) wiced_transport_free_buffer( ptr )
+#endif
 #define app_get_pool_free_count( pool ) wiced_bt_get_pool_free_count( pool )
 #define app_cfg_sec_mask() ( wiced_bt_cfg_settings.security_required )
 #define APP_AVDT_CB p_avdt_ctrl_cback

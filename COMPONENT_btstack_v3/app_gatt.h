@@ -38,7 +38,6 @@
  *               Macro Function Definitions
  ******************************************************/
 #define app_gatt_valid_conn_id( idx ) ( le_control_cb.conn[idx].conn_id != 0 )
-#define app_gatt_client_send_read_handle( id, handle ) wiced_bt_gatt_client_send_read_handle( id, handle, 0, NULL, 0, GATT_AUTH_REQ_NONE )
 #define app_gatt_discovery_type( p ) ( p->discovery_type )
 
 #define APP_GATT_WRITE_NRSP GATT_CMD_WRITE   // should change to GATT_REQ_WRITE?
@@ -53,6 +52,7 @@ uint16_t               app_gatt_get_conn_id(uint16_t conn_idx);
 wiced_result_t         app_gatt_operation_comp_cb( wiced_bt_gatt_operation_complete_t *p_complete);
 wiced_bt_gatt_status_t app_gatt_req_cb(wiced_bt_gatt_attribute_request_t *p_req);
 wiced_bt_gatt_status_t app_gatt_send_write(uint8_t conn_idx, uint16_t attr_handle, uint8_t *p_data, uint16_t len, wiced_bt_gatt_opcode_t type);
+wiced_bt_gatt_status_t app_gatt_client_send_read_handle(uint16_t conn_idx, uint16_t handle);
 wiced_bt_gatt_status_t app_gatt_send_response(uint16_t conn_id, uint16_t handle, uint8_t *p_data, uint16_t len);
 wiced_bt_gatt_status_t app_gatt_operation_complete(wiced_bt_gatt_operation_complete_t *p_data);
 void                   app_gatt_send_read_by_handle(uint16_t conn_id, uint16_t handle);

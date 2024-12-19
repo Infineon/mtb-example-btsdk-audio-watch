@@ -49,6 +49,7 @@
 #endif
 #include <wiced_bt_stack.h>
 #include <wiced_bt_trace.h>
+#include <wiced_bt_l2c.h>
 #include <wiced_memory.h>
 #if (defined(CYW20721B2) || defined(CYW43012C0))
 #include <wiced_utilities.h>
@@ -100,7 +101,11 @@ static app_identity_random_mapping_t addr_mapping[ADDR_MAPPING_MAX_COUNT] = {0};
 /*
  * Application Start, ie, entry point to the application.
  */
+#ifndef APPLICATION_START
+void APPLICATION_START()
+#else
 APPLICATION_START()
+#endif
 {
     wiced_result_t result;
 
@@ -124,6 +129,9 @@ APPLICATION_START()
     wiced_hal_puart_configuration( 3000000, PARITY_NONE, STOP_BIT_2 );
     wiced_hal_puart_select_uart_pads( WICED_PUART_RXD, WICED_PUART_TXD, 0, 0);
 #else
+#ifdef CYW43022C1
+    wiced_hal_puart_select_uart_pads( 0, WICED_P05, 0, 0 );
+#endif
     wiced_hal_puart_configuration( 3000000, PARITY_NONE, STOP_BIT_2 );
 #endif // CYW20706A2
 #endif /* CYW55572 */
@@ -420,6 +428,17 @@ wiced_result_t btm_event_handler(wiced_bt_management_evt_t event, wiced_bt_manag
                                 p_event_data->ble_connection_param_update.status, p_event_data->ble_connection_param_update.bd_addr,
                                 p_event_data->ble_connection_param_update.conn_interval, p_event_data->ble_connection_param_update.conn_latency,
                                 p_event_data->ble_connection_param_update.supervision_timeout);
+
+            if(p_event_data->ble_connection_param_update.supervision_timeout != 600)
+            {
+                uint8_t index = find_index_by_address(p_event_data->ble_connection_param_update.bd_addr);
+
+                if (index == 0xFF)
+                    index = 0;
+                else
+                    index++;
+                wiced_bt_l2cap_update_ble_conn_params( p_event_data->ble_connection_param_update.bd_addr, 108, 108 + 12*index, 0, 600 );
+            }
             break;
 #endif
 

@@ -38,7 +38,9 @@
  *
  */
 #include "wiced_bt_dev.h"
+#ifdef WICED_APP_AUDIO_RC_CT_INCLUDED
 #include "wiced_bt_avrc_ct.h"
+#endif
 #include "wiced_bt_stack.h"
 #include "wiced_transport.h"
 #include "wiced_app.h"
@@ -63,10 +65,17 @@
  * app_transport_tx_cplt_cback.
  * This function is called when a Transport Buffer has been sent to the MCU
  */
+#ifdef NEW_DYNAMIC_MEMORY_INCLUDED
 static void app_transport_tx_cplt_cback(void)
 {
     return;
 }
+#else
+static void app_transport_tx_cplt_cback(wiced_transport_buffer_pool_t* p_pool)
+{
+    WICED_BT_TRACE( " hci_control_transport_tx_cplt_cback %x \n", p_pool );
+}
+#endif
 
 /******************************************************
  *               data structure
@@ -82,12 +91,19 @@ const wiced_transport_cfg_t transport_cfg =
             .baud_rate =  HCI_UART_DEFAULT_BAUD
         },
     },
+#ifdef NEW_DYNAMIC_MEMORY_INCLUDED
     .heap_config =
     {
         .data_heap_size = 1024 * 4 + 1500 * 2,
         .hci_trace_heap_size = 1024 * 2,
         .debug_trace_heap_size = 1024,
     },
+#else
+    .rx_buff_pool_cfg = {
+        .buffer_size = 1024,
+        .buffer_count = 3,
+    },
+#endif
     .p_status_handler    = hci_control_transport_status,
     .p_data_handler      = hci_control_proc_rx_cmd,
     .p_tx_complete_cback = app_transport_tx_cplt_cback

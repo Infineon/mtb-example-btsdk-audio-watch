@@ -48,7 +48,9 @@
 #include "wiced_bt_cfg.h"
 #include "wiced_bt_sdp.h"
 #include "wiced_app.h"
+#ifdef WICED_APP_AUDIO_RC_TG_INCLUDED
 #include "wiced_bt_avrc_tg.h"
+#endif
 #include "wiced_bt_audio.h"
 #include "wiced_bt_avdt.h"
 #include "cycfg_gatt_db.h"
@@ -93,7 +95,7 @@
 
 #define AV_SBC_MAX_BITPOOL          53
 
-#if defined(CYW43012C0) || defined(CYW20819A1)
+#if defined(CYW43012C0) || defined(CYW20819A1) || defined(CYW43022C1)
 #define AUDIO_TX_BUFFER_SIZE        0x2000
 #else
 #define AUDIO_TX_BUFFER_SIZE        11000
@@ -292,8 +294,8 @@ const uint8_t wiced_app_cfg_sdp_record[] =
                 SDP_ATTR_UUID16( UUID_SERVCLASS_GENERIC_AUDIO ),            // 3 bytes ServiceClass1 UUID_SERVCLASS_GENERIC_AUDIO
         SDP_ATTR_RFCOMM_PROTOCOL_DESC_LIST( 1 ),                            // 17 bytes ( SCN=1 )
         SDP_ATTR_PROFILE_DESC_LIST( UUID_SERVCLASS_AG_HANDSFREE, 0x0108 ),  // 13 bytes UUID_SERVCLASS_HF_HANDSFREE, version 0x0105
-		SDP_ATTR_UINT1(ATTR_ID_NETWORK, 0x00),                                  // 5 byte
-		SDP_ATTR_UINT2(ATTR_ID_SUPPORTED_FEATURES,  AG_SUPPORTED_FEATURES_ATT), //6 bytes
+        SDP_ATTR_UINT1(ATTR_ID_NETWORK, 0x00),                                  // 5 byte
+        SDP_ATTR_UINT2(ATTR_ID_SUPPORTED_FEATURES,  AG_SUPPORTED_FEATURES_ATT), //6 bytes
 #endif
 
 #ifdef WICED_APP_HFP_HF_INCLUDED

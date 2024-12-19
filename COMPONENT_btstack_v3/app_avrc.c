@@ -37,6 +37,7 @@
  * This file is applicable for all devices with BTSTACK version 3.0 and greater, for example 55572
  *
  */
+#ifdef WICED_APP_AUDIO_RC_CT_INCLUDED
 #include "wiced_bt_dev.h"
 #include "wiced_bt_avrc_ct.h"
 #include "wiced_bt_stack.h"
@@ -191,3 +192,4 @@ void app_avrc_passthrough_cback(uint8_t handle, wiced_bt_avrc_ctype_t ctype, wic
 {
     avrc_passthrough_cback( handle, avrc_pass_rsp->operation_id, ctype, avrc_pass_rsp);
 }
+#endif

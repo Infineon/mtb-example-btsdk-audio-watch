@@ -41,7 +41,6 @@
 #include "wiced_bt_audio.h"
 #include "wiced_bt_gatt.h"
 #include "wiced_bt_ble.h"
-#include "wiced_bt_trace.h"
 #include "wiced_bt_cfg.h"
 #include "wiced_app_cfg.h"
 #include "wiced_result.h"
@@ -418,9 +417,10 @@ void hci_control_audio_support_features_send(void)
             &features, sizeof(features));
 }
 
-#ifdef WICED_BT_TRACE_ENABLE
+
 const char *dump_state_name(AV_STATE state)
 {
+#ifdef WICED_BT_TRACE_ENABLE
     switch((int)state)
     {
         CASE_RETURN_STR(AV_STATE_IDLE)              /* Initial state (channel is unused) */
@@ -435,12 +435,13 @@ const char *dump_state_name(AV_STATE state)
         CASE_RETURN_STR(AV_STATE_RECONFIG)          /* Reconfiguring stream */
         CASE_RETURN_STR(AV_STATE_DISCONNECTING)     /* Disconnecting */
     }
-
+#endif
     return NULL;
 }
 
 const char *dump_stream_state_name(AV_STREAM_STATE state)
 {
+#ifdef WICED_BT_TRACE_ENABLE
     switch((int)state)
     {
         CASE_RETURN_STR(AV_STREAM_STATE_STOPPED)
@@ -448,12 +449,13 @@ const char *dump_stream_state_name(AV_STREAM_STATE state)
         CASE_RETURN_STR(AV_STREAM_STATE_STARTED)
         CASE_RETURN_STR(AV_STREAM_STATE_STOPPING)
     }
-
+#endif
     return NULL;
 }
 
 const char *dump_avdt_event_name(int event)
 {
+#ifdef WICED_BT_TRACE_ENABLE
     switch(event)
     {
         CASE_RETURN_STR(AVDT_DISCOVER_CFM_EVT)       /* 0    Discover confirm */
@@ -479,10 +481,10 @@ const char *dump_avdt_event_name(int event)
         CASE_RETURN_STR(AVDT_DELAY_REPORT_EVT)       /* 20   Delay report received */
         CASE_RETURN_STR(AVDT_DELAY_REPORT_CFM_EVT)   /* 21   Delay report response received */
     }
-
+#endif
     return NULL;
 }
-#endif
+
 
 static wiced_bt_avdt_cfg_t *peercaps_from_seid(uint8_t seid)
 {
@@ -505,10 +507,9 @@ static wiced_bt_avdt_cfg_t *peercaps_from_seid(uint8_t seid)
 /*
  * Capabilities format checker for SBC.
  */
-static wiced_bool_t av_app_sbc_format_check( uint8_t *peer_codec_info, wiced_bt_a2d_sbc_cie_t *sbc_caps )
+static wiced_bt_a2d_status_t av_app_sbc_format_check( uint8_t *peer_codec_info, wiced_bt_a2d_sbc_cie_t *sbc_caps )
 {
     wiced_bt_a2d_sbc_cie_t codec_info;
-    wiced_bool_t           ret_val = WICED_FALSE;
     wiced_bt_a2d_status_t            a2d_status;
 
     /*
@@ -539,10 +540,10 @@ static wiced_bool_t av_app_sbc_format_check( uint8_t *peer_codec_info, wiced_bt_
                                   ( sample_freq == AUDIO_SF_44_1K ) ? A2D_SBC_IE_SAMP_FREQ_44 : A2D_SBC_IE_SAMP_FREQ_48;
         }
         WICED_BT_TRACE( "[%s]: samp_freq: 0x%x vs 0x%x\r\n", __FUNCTION__, sbc_caps->samp_freq, codec_info.samp_freq);
-        ret_val = ( sbc_caps->samp_freq & codec_info.samp_freq ) ? WICED_TRUE : WICED_FALSE;
+        a2d_status = ( sbc_caps->samp_freq & codec_info.samp_freq ) ? A2D_SUCCESS : A2D_NS_SAMP_FREQ;
     }
 
-    if ( ret_val )
+    if ( a2d_status == A2D_SUCCESS )
     {
         if (!av_app_cb.is_accepter)
         {
@@ -552,10 +553,10 @@ static wiced_bool_t av_app_sbc_format_check( uint8_t *peer_codec_info, wiced_bt_
             sbc_caps->ch_mode = ( ch_config == AUDIO_CHCFG_MONO )   ? A2D_SBC_IE_CH_MD_MONO : A2D_SBC_IE_CH_MD_JOINT;
         }
         WICED_BT_TRACE( "[%s]: ch_mode: 0x%x vs 0x%x\r\n", __FUNCTION__, sbc_caps->ch_mode, codec_info.ch_mode);
-        ret_val = ( sbc_caps->ch_mode & codec_info.ch_mode ) ? WICED_TRUE : WICED_FALSE;
+        a2d_status = ( sbc_caps->ch_mode & codec_info.ch_mode ) ? A2D_SUCCESS : A2D_NS_CH_MODE;
     }
 
-    if ( ret_val )
+    if ( a2d_status == A2D_SUCCESS )
     {
         /* make sure there is an overlap in the bitpool values */
         if ( codec_info.min_bitpool > sbc_caps->min_bitpool )
@@ -569,12 +570,24 @@ static wiced_bool_t av_app_sbc_format_check( uint8_t *peer_codec_info, wiced_bt_
         /* Sanity check */
         if ( sbc_caps->min_bitpool > sbc_caps->max_bitpool )
         {
-            ret_val = WICED_FALSE;
+            a2d_status = A2D_BAD_MIN_BITPOOL;
         }
     }
 
-    WICED_BT_TRACE( "[%s]: Exit Format Match: %s\n", __FUNCTION__, ret_val ? "TRUE" : "FALSE");
-    return ret_val;
+    if ( a2d_status == A2D_SUCCESS )
+    {
+        WICED_BT_TRACE( "[%s]: subband: 0x%x vs 0x%x\r\n", __FUNCTION__, sbc_caps->num_subbands, codec_info.num_subbands);
+        a2d_status = ( sbc_caps->num_subbands & codec_info.num_subbands ) ? A2D_SUCCESS : A2D_NS_SUBBANDS;
+    }
+
+    if ( a2d_status == A2D_SUCCESS )
+    {
+        WICED_BT_TRACE( "[%s]: alloc_mthd: 0x%x vs 0x%x\r\n", __FUNCTION__, sbc_caps->alloc_mthd, codec_info.alloc_mthd);
+        a2d_status = ( sbc_caps->alloc_mthd & codec_info.alloc_mthd ) ? A2D_SUCCESS : A2D_NS_ALLOC_MTHD;
+    }
+
+    WICED_BT_TRACE( "[%s]: Exit Format Match: %s\n", __FUNCTION__, a2d_status == A2D_SUCCESS ? "TRUE" : "FALSE");
+    return a2d_status;
 }
 
 static void av_app_send_setconfiguration( TIMER_PARAM_TYPE cb_params )
@@ -606,7 +619,7 @@ static void av_app_send_setconfiguration( TIMER_PARAM_TYPE cb_params )
             if (peercaps != NULL)
             {
                 /* we will use the first SBC SEP that we find. */
-                if ( av_app_sbc_format_check( peercaps->codec_info, &av_app_cb.sbc_caps_configured ) )
+                if ( av_app_sbc_format_check( peercaps->codec_info, &av_app_cb.sbc_caps_configured ) == A2D_SUCCESS )
                 {
                     av_app_cb.sep_configured_for_streaming = i;
                     break;
@@ -1218,6 +1231,8 @@ static void av_app_config_indication_event_hdlr(uint8_t handle, BD_ADDR bd_addr,
 
         /* Find the index of the SEID in the sep info array. It will be used for reconfigure if necessary */
         av_app_cb.sep_info_idx = 0;
+        if(av_app_cb.sep_info)
+        {
         for (i=0; i<av_app_cb.peer_num_seps; i++)
         {
             if (av_app_cb.sep_info[i].seid == p_data->config_ind.int_seid)
@@ -1229,6 +1244,7 @@ static void av_app_config_indication_event_hdlr(uint8_t handle, BD_ADDR bd_addr,
                 av_app_cb.sep_configured_for_streaming = i;
                 break;
             }
+        }
         }
 
         /* Got the indication of the setconfig. Check the format. */
@@ -1247,13 +1263,13 @@ static void av_app_config_indication_event_hdlr(uint8_t handle, BD_ADDR bd_addr,
                                       WICED_FALSE ); /* Set flag to check for single bit set. */
         if (A2D_SUCCESS == a2d_status)
         {
-            if ( !av_app_sbc_format_check( p_data->config_ind.p_cfg->codec_info, &sbc_caps ) )
+            if ( A2D_SUCCESS != av_app_sbc_format_check( p_data->config_ind.p_cfg->codec_info, &sbc_caps ) )
             {
                 /* Incompatible format from remote. */
                 WICED_BT_TRACE( "[%s]: WARNING!!! Incompatible format. Failing request. SEID: %d \n\r", __FUNCTION__,
                                 p_data->config_ind.int_seid);
 
-                err_code = AVDT_ERR_UNSUP_CFG;
+                err_code = a2d_status;
                 av_app_cb.state = AV_STATE_CONNECTED;
             }
         }
@@ -1263,7 +1279,7 @@ static void av_app_config_indication_event_hdlr(uint8_t handle, BD_ADDR bd_addr,
             WICED_BT_TRACE( "[%s]: WARNING!!! Incompatible format. Failing request. SEID: %d \n\r", __FUNCTION__,
                             p_data->config_ind.int_seid);
 
-            err_code = AVDT_ERR_UNSUP_CFG;
+            err_code = a2d_status;
             av_app_cb.state = AV_STATE_CONNECTED;
         }
 
@@ -1513,10 +1529,13 @@ static wiced_result_t av_app_send_discover_req( void )
     if (av_app_cb.sep_info != NULL)
     {
         wiced_bt_free_buffer(av_app_cb.sep_info);
+        av_app_cb.sep_info = NULL;
     }
     /* Allocate space for the discovery results */
     p_sep_info = (wiced_bt_avdt_sep_info_t *)wiced_bt_get_buffer(discover_size);
 
+    if(p_sep_info)
+    {
     /* Store the allocated pointer */
     av_app_cb.sep_info = p_sep_info;
     if (p_sep_info != NULL)
@@ -1530,6 +1549,7 @@ static wiced_result_t av_app_send_discover_req( void )
             wiced_bt_free_buffer(p_sep_info);
             status = WICED_ERROR;
         }
+    }
     }
 
     return status;
@@ -1650,7 +1670,7 @@ static wiced_result_t av_app_reconfigure_req(uint8_t new_sf, uint8_t new_chcfg)
         wiced_bt_avdt_cfg_t *peer_caps = peercaps_from_seid(av_app_cb.sep_info[av_app_cb.sep_configured_for_streaming].seid);
 
         /* we will use the first SBC SEP that we find. */
-        if ( av_app_sbc_format_check( peer_caps->codec_info, &sbc_caps ) )
+        if ( av_app_sbc_format_check( peer_caps->codec_info, &sbc_caps ) == A2D_SUCCESS)
         {
             wiced_bt_avdt_cfg_t av_sbc_cfg;
 
@@ -1741,7 +1761,7 @@ static void av_app_start_audio_stream( void )
     if (av_app_cb.audio_route == AUDIO_ROUTE_I2S)
     {
         /* Turn off SW interrupt timing */
-        #ifndef CYW43012C0
+        #if !defined(CYW43012C0) && !defined(CYW43022C1)
         wiced_audio_use_sw_timing(0);
         #endif
 
@@ -1757,7 +1777,7 @@ static void av_app_start_audio_stream( void )
     {
         /* For timing use SW interrupt instead of I2S.
          * To use I2S interrupt please remove wiced_audio_use_sw_timing API call and make sure that I2S interface is configured. */
-        #ifndef CYW43012C0
+        #if !defined(CYW43012C0) && !defined(CYW43022C1)
         wiced_audio_use_sw_timing(1);
         #endif
 

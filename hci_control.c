@@ -207,7 +207,7 @@
 #include <wiced_trans_spi.h>
 #endif
 #endif
-#if ( defined(CYW20719B1) || defined(CYW20719B2) || defined(CYW20721B1) || defined(CYW20721B2) || defined(WICEDX) || defined(CYW20819A1) || defined(CYW55572A1) )
+#if ( defined(CYW20719B1) || defined(CYW20719B2) || defined(CYW20721B1) || defined(CYW20721B2) || defined(WICEDX) || defined(CYW20819A1) || defined(CYW55572A1) || defined(CYW43022C1) )
 #include <wiced_sleep.h>
 #endif
 #ifdef CYW20706A2
@@ -262,7 +262,13 @@
 /******************************************************
  *               Variables Definitions
  ******************************************************/
+#ifdef WICED_APP_AUDIO_RC_TG_INCLUDED
 uint8_t avrcp_profile_role = AVRCP_TARGET_ROLE;
+#elif defined (WICED_APP_AUDIO_RC_CT_INCLUDED)
+uint8_t avrcp_profile_role = AVRCP_CONTROLLER_ROLE;
+#else
+uint8_t avrcp_profile_role = AVRCP_TARGET_ROLE;
+#endif
 #if defined(WICED_APP_HFP_AG_INCLUDED)
 uint8_t hfp_profile_role = HFP_AUDIO_GATEWAY_ROLE;
 #elif defined(WICED_APP_HFP_HF_INCLUDED)
@@ -277,6 +283,9 @@ hci_control_cb_t  hci_control_cb;
 #endif
 
 wiced_transport_buffer_pool_t* transport_pool;   // Trans pool for sending the RFCOMM data to host
+#if defined(CYW55572A1)
+extern wiced_result_t wiced_sleep_allow_sleep ( pmu_sleep_t  sleep_mode );
+#endif
 
 // memory optimizations
 #if defined(CYW43012C0)
@@ -365,12 +374,18 @@ void hci_control_init(void)
     memset(&hci_control_cb, 0, sizeof(hci_control_cb));
 
     wiced_transport_init(&transport_cfg);
+
+    //If need transfer large data to host
+    //transport_pool = wiced_transport_create_buffer_pool( TRANS_UART_BUFFER_SIZE, TRANS_UART_BUFFER_COUNT);
 }
+
+//extern wiced_result_t wiced_bt_ble_config_privacy(wiced_bool_t privacy_mode);
 
 void hci_control_post_init(void)
 {
 #ifdef WICED_APP_LE_INCLUDED
     hci_control_le_enable(&wiced_bt_cfg_settings);
+    //wiced_bt_ble_config_privacy(WICED_FALSE);
 #endif
 
 #ifdef WICED_APP_AUDIO_SRC_INCLUDED
@@ -391,12 +406,14 @@ void hci_control_post_init(void)
     }
 #endif
 #if (defined(WICED_APP_HFP_AG_INCLUDED) || defined(WICED_APP_HFP_HF_INCLUDED))
+#if BTSTACK_VER < 0x03000001
     /* Perform the rfcomm init before hfp start up */
     if( (wiced_bt_rfcomm_result_t)wiced_bt_rfcomm_init( 200, 5 ) != WICED_BT_RFCOMM_SUCCESS )
     {
         WICED_BT_TRACE("Error Initializing RFCOMM - HFP failed\n");
         return;
     }
+#endif
 #endif
 #ifdef WICED_APP_HFP_AG_INCLUDED
     hci_control_ag_init();
@@ -543,6 +560,8 @@ void hci_control_sleep_configure()
         hci_control_sleep_config.sleep_mode             = WICED_SLEEP_MODE_TRANSPORT;
 #ifdef CYW55572A1
         hci_control_sleep_config.device_wake_gpio_num   = WICED_GPIO_10;
+#elif defined (CYW43022C1)
+        hci_control_sleep_config.device_wake_gpio_num   = WICED_GPIO_05;
 #else
         hci_control_sleep_config.device_wake_gpio_num   = WICED_GPIO_PIN_BUTTON;
 #endif
@@ -565,8 +584,8 @@ void hci_control_sleep_configure()
         }
         hci_control_cb.application_state = HCI_CONTROL_STATE_NOT_IDLE;
 
-#ifdef CYW55572A1
-        wiced_sleep_allow_sleep(1);
+#if defined(CYW55572A1)
+        wiced_sleep_allow_sleep(PMU_SLEEP_WITH_XTAL_ON);
 #endif
         wiced_sleep_configure( &hci_control_sleep_config );
     }
@@ -654,8 +673,14 @@ void hci_control_write_eir( void )
 void hci_control_hci_packet_cback( wiced_bt_hci_trace_type_t type, uint16_t length, uint8_t* p_data )
 {
 #if (WICED_HCI_TRANSPORT == WICED_HCI_TRANSPORT_UART)
+#ifdef ENABLE_BLUETOOTH_HCI_TRACE
     // send the trace
-    app_transport_send_hci_trace(type, p_data, length);
+#ifdef NEW_DYNAMIC_MEMORY_INCLUDED
+    wiced_transport_send_hci_trace( type, p_data, length );
+#else
+	wiced_transport_send_hci_trace( NULL, type, length, p_data );
+#endif
+#endif
 #endif
 
     if ( !test_command.test_executing )
@@ -752,8 +777,11 @@ uint32_t hci_control_proc_rx_cmd( uint8_t *p_buffer, uint32_t length )
     uint16_t payload_len;
     uint8_t *p_data = p_buffer;
     uint8_t  buffer_processed = WICED_TRUE;
+#if defined (WICED_APP_AMS_INCLUDED) || defined (WICED_APP_ANCS_INCLUDED)
     uint16_t conn_id;
     uint8_t  index = 0xff;
+#endif
+
     if ( !p_buffer )
     {
         return HCI_CONTROL_STATUS_INVALID_ARGS;
@@ -816,11 +844,11 @@ uint32_t hci_control_proc_rx_cmd( uint8_t *p_buffer, uint32_t length )
             }
             else
 #endif
-#ifdef WICED_APP_AUDIO_RC_CT_INCLUDED
             {
+#ifdef WICED_APP_AUDIO_RC_CT_INCLUDED
                 hci_control_avrc_handle_ctrlr_command(opcode, p_data, payload_len);
-            }
 #endif
+            }
         }
         break;
 
@@ -973,7 +1001,9 @@ void hci_control_handle_trace_enable( uint8_t *p_data )
 
 // In SPI transport case, PUART is recommended for debug traces and is set to PUART by default.
 #if (WICED_HCI_TRANSPORT != WICED_HCI_TRANSPORT_SPI)
+#ifdef WICED_BT_TRACE_ENABLE
     wiced_set_debug_uart( route_debug );
+#endif
 #endif
     hci_control_send_command_status_evt( HCI_CONTROL_EVENT_COMMAND_STATUS, HCI_CONTROL_STATUS_SUCCESS );
     WICED_BT_TRACE("HCI Traces:%d DebugRoute:%d\n", hci_trace_enable, route_debug);
@@ -1106,7 +1136,7 @@ void hci_control_handle_set_visibility( uint8_t discoverability, uint8_t connect
 void hci_control_handle_set_pairability ( uint8_t pairing_allowed )
 {
     uint8_t                   status = HCI_CONTROL_STATUS_SUCCESS;
-    hci_control_nvram_chunk_t *p1 = NULL;
+    //hci_control_nvram_chunk_t *p1 = NULL;
 
     if ( hci_control_cb.pairing_allowed != pairing_allowed )
     {
@@ -1377,7 +1407,7 @@ wiced_result_t hci_control_avrc_send_connect_complete( wiced_bt_device_address_t
         event_data[i++] = status;
     }
 
-    return wiced_transport_send_data( HCI_CONTROL_AVRC_CONTROLLER_EVENT_CONNECTED, event_data, i );
+    return wiced_transport_send_data( HCI_CONTROL_AVRC_CONTROLLER_EVENT_CONNECTED, event_data, cmd_size );
 }
 
 /*

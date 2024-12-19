@@ -88,6 +88,8 @@ void le_peripheral_app_init(void);
 void le_peripheral_connection_up(wiced_bt_gatt_connection_status_t *p_conn_status);
 void le_peripheral_connection_down(wiced_bt_gatt_connection_status_t *p_conn_status);
 void le_peripheral_encryption_status_changed(wiced_bt_dev_encryption_status_t *p_status);
+wiced_bool_t is_le_peripheral_new_connection_avalialbe(void);
+uint8_t find_index_by_address(BD_ADDR remote_addr);
 
 wiced_bt_gatt_status_t le_peripheral_gatt_discovery_result  (wiced_bt_gatt_discovery_result_t *p_data);
 wiced_bt_gatt_status_t le_peripheral_gatt_discovery_complete(wiced_bt_gatt_discovery_complete_t *p_data);
